@@ -1,0 +1,20 @@
+import "@fontsource-variable/geist";
+import "@fontsource-variable/geist-mono";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router";
+import { registerSW } from "virtual:pwa-register";
+import App from "./App";
+import { desktop } from "./lib/desktop";
+import "./styles.css";
+
+// The desktop app ships its files locally; a service worker would only risk serving an old version after updates.
+if (!desktop) registerSW({ immediate: true });
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </StrictMode>,
+);

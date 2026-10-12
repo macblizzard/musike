@@ -1,0 +1,8 @@
+packages:
+  - server
+  - web
+  - desktop
+
+onlyBuiltDependencies:
+  - esbuild
+  - electron

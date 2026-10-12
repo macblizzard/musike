@@ -1,0 +1,20 @@
+# Dependencies and builds
+node_modules/
+dist/
+dev-dist/
+desktop/dist/
+desktop/release/
+
+# Local data (library, HD video cache)
+server/data/
+server/cache/
+
+# Third-party agent skills, restorable from skills-lock.json (npx skills)
+.claude/
+.agents/
+
+# Misc
+*.log
+.env
+.DS_Store
+Thumbs.db

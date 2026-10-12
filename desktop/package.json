@@ -1,0 +1,71 @@
+{
+  "name": "musike-desktop",
+  "productName": "Musike",
+  "version": "0.1.0",
+  "description": "Sua música, sem interrupção.",
+  "author": "Musike",
+  "private": true,
+  "main": "dist/main.mjs",
+  "scripts": {
+    "bundle": "node scripts/bundle.mjs",
+    "start": "pnpm --filter @musike/web build && node scripts/bundle.mjs && electron .",
+    "dist": "pnpm --filter @musike/web build && node scripts/bundle.mjs && electron-builder --win nsis --publish never",
+    "typecheck": "tsc --noEmit"
+  },
+  "build": {
+    "appId": "app.musike.desktop",
+    "productName": "Musike",
+    "copyright": "Musike",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../web/dist",
+        "to": "web"
+      }
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "Musike-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Musike",
+      "runAfterFinish": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerLanguages": [
+        "pt_BR"
+      ],
+      "language": "1046",
+      "deleteAppDataOnUninstall": false
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.2",
+    "typescript": "^7.0.2"
+  }
+}
