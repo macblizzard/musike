@@ -1,0 +1,274 @@
+import type { Innertube } from "youtubei.js";
+import { sized, text, toTrack, withClient } from "./search.js";
+import type { Track } from "./types.js";
+import { HttpError } from "./types.js";
+
+export interface Genre {
+  /** YouTube Music's opaque "params" for the genre page. */
+  id: string;
+  name: string;
+}
+
+export interface GenreArtist {
+  id: string;
+  name: string;
+  /** Cover of one of their releases in this genre (artist photos would cost a request each). */
+  thumb: string;
+  art: string;
+  /** A few of their songs in this genre, to recognize them by. */
+  hits: string[];
+}
+
+export interface GenrePage {
+  id: string;
+  name: string;
+  /** The first page of artists; more come from `genreArtists`. */
+  artists: GenreArtist[];
+  hasMoreArtists: boolean;
+  tracks: Track[];
+}
+
+export interface ArtistPage {
+  id: string;
+  name: string;
+  description: string;
+  banner: string;
+  tracks: Track[];
+}
+
+export const GENRE_ID = /^[\w-]{8,120}={0,2}$/;
+export const ARTIST_ID = /^UC[\w-]{22}$/;
+
+const MINUTE = 60_000;
+const ARTISTS_PAGE = 40;
+/** Enough for anyone browsing; stops reading playlists after that. */
+const MAX_ARTISTS = 600;
+const PLAYLISTS_PER_ROUND = 4;
+const MAX_GENRE_TRACKS = 150;
+const MAX_HITS = 50;
+
+/** Time-boxed memo: these pages change slowly, and going back and forth between them should be instant. */
+function cached<T>(ttl: number, load: (key: string) => Promise<T>): (key: string) => Promise<T> {
+  const memo = new Map<string, { at: number; value: Promise<T> }>();
+  return (key) => {
+    const hit = memo.get(key);
+    if (hit && Date.now() - hit.at < ttl) return hit.value;
+    if (memo.size > 200) memo.delete(memo.keys().next().value!);
+    const value = load(key);
+    memo.set(key, { at: Date.now(), value });
+    // Failures are not cached, so the next visit tries again.
+    value.catch(() => memo.get(key)?.value === value && memo.delete(key));
+    return value;
+  };
+}
+
+// youtubei.js has no typed helper for the genre pages, so these responses are read defensively.
+const browse = (yt: Innertube, payload: Record<string, unknown>): Promise<any> =>
+  yt.actions.execute("/browse", { ...payload, client: "YTMUSIC", parse: true });
+
+function shelvesOf(page: any): any[] {
+  const root = typeof page?.contents?.item === "function" ? page.contents.item() : page?.contents;
+  return root?.tabs?.[0]?.content?.contents ?? [];
+}
+
+const itemsOf = (shelf: any): any[] => shelf?.contents ?? shelf?.items ?? [];
+
+function imagesOf(item: any): { thumb: string; art: string } {
+  const thumbs = item?.thumbnail?.contents ?? item?.thumbnail ?? item?.thumbnails ?? [];
+  const url: string | undefined = Array.isArray(thumbs) ? thumbs[0]?.url : undefined;
+  return { thumb: sized(url, 240), art: sized(url, 544) };
+}
+
+/** Same song twice (another upload, a playlist repeat) only shows once. */
+function uniqueTracks(tracks: (Track | null)[]): Track[] {
+  const seen = new Set<string>();
+  return tracks.filter((t): t is Track => {
+    if (!t) return false;
+    const key = `${t.title}|${t.artist}`.toLocaleLowerCase("pt-BR");
+    if (seen.has(t.id) || seen.has(key)) return false;
+    seen.add(t.id);
+    seen.add(key);
+    return true;
+  });
+}
+
+/** [[a1, a2], [b1]] → [a1, b1, a2] */
+function roundRobin<T>(lists: T[][]): T[] {
+  const out: T[] = [];
+  for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) if (i < l.length) out.push(l[i]!);
+  return out;
+}
+
+/** "Céu Azul (Ao Vivo)" → "Céu Azul": enough to recognize the song in a short preview. */
+const bareTitle = (title: string) => title.replace(/\s*[([].*?[)\]]/g, "").trim() || title;
+
+export const genres = cached(6 * 60 * MINUTE, async (): Promise<Genre[]> => {
+  const page = await withClient((yt) => browse(yt, { browseId: "FEmusic_moods_and_genres" })).catch(() => {
+    throw new HttpError(502, "Não foi possível carregar os gêneros agora. Tente de novo.");
+  });
+  const grids = shelvesOf(page);
+  // The page has "moods" then "genres"; match the title in any language, falling back to the last grid.
+  const grid = grids.find((g) => /g[eéê]ne?r/i.test(text(g.header?.title ?? g.title))) ?? grids.at(-1);
+  return itemsOf(grid)
+    .map((b) => ({ id: String(b.endpoint?.payload?.params ?? ""), name: text(b.button_text ?? b.title) }))
+    .filter((g) => GENRE_ID.test(g.id) && g.name);
+});
+
+async function playlistItems(id: string, limit: number): Promise<any[]> {
+  try {
+    const list = await withClient((yt) => yt.music.getPlaylist(id));
+    return ((list as any).items ?? (list as any).contents ?? []).slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Ranks the artists credited on `sources` by how often they show up (times the source's weight),
+ * skipping the ones already `known`. Channels that are not artist pages (labels, uploaders) are left out.
+ */
+function rankArtists(sources: { items: any[]; weight: number; hits: boolean }[], known: Set<string>): GenreArtist[] {
+  const ranked = new Map<string, GenreArtist & { score: number }>();
+  for (const { items, weight, hits } of sources) {
+    for (const item of items) {
+      const hit = hits ? bareTitle(text(item.title)) : "";
+      for (const a of item.artists ?? []) {
+        const pageType = a?.endpoint?.payload?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType;
+        if (!ARTIST_ID.test(a?.channel_id ?? "") || known.has(a.channel_id)) continue;
+        if (pageType && pageType !== "MUSIC_PAGE_TYPE_ARTIST") continue;
+        let entry = ranked.get(a.channel_id);
+        if (!entry) {
+          entry = { id: a.channel_id, name: text(a.name), ...imagesOf(item), hits: [], score: 0 };
+          ranked.set(a.channel_id, entry);
+        }
+        entry.score += weight;
+        if (hit && entry.hits.length < 3 && !entry.hits.includes(hit)) entry.hits.push(hit);
+      }
+    }
+  }
+  return [...ranked.values()]
+    .filter((a) => a.name)
+    .sort((a, b) => b.score - a.score)
+    .map(({ score: _, ...a }) => a);
+}
+
+/** What a genre has turned up so far. "Load more" keeps reading its playlists for artists not seen yet. */
+interface GenreState {
+  page: GenrePage;
+  /** Every artist found so far, in a fixed order: later pages append, never reshuffle earlier ones. */
+  pool: GenreArtist[];
+  /** Playlists not read yet. */
+  queue: string[];
+  extending?: Promise<void>;
+}
+
+/**
+ * A genre's songs and the artists behind them. The page lists ~50 songs, playlists and albums;
+ * two editorial playlists widen the song list (and are all there is for pages like "Décadas").
+ */
+const genreState = cached(30 * MINUTE, async (id): Promise<GenreState> => {
+  const [all, page] = await Promise.all([
+    genres("").catch(() => [] as Genre[]),
+    withClient((yt) => browse(yt, { browseId: "FEmusic_moods_and_genres_category", params: id })).catch(() => {
+      throw new HttpError(502, "Não foi possível abrir este gênero agora. Tente de novo.");
+    }),
+  ]);
+  const shelves = shelvesOf(page);
+  const items = shelves.flatMap(itemsOf);
+  const songs = items.filter((i) => i.item_type === "song");
+  const albums = items.filter((i) => i.item_type === "album");
+
+  // One playlist from each shelf in turn (so "Décadas" mixes decades), editorial ("RDCLAK...") before
+  // community ones, which are hit and miss.
+  const perShelf = shelves.map((s) => itemsOf(s).filter((i) => i.item_type === "playlist" && typeof i.id === "string"));
+  const editorial = (p: any) => /RDCLAK/.test(p.id);
+  const playlists = [
+    ...new Set(
+      [...roundRobin(perShelf.map((list) => list.filter(editorial))), ...roundRobin(perShelf.map((list) => list.filter((p) => !editorial(p))))].map(
+        (p): string => p.id,
+      ),
+    ),
+  ];
+  const first = songs.length >= 10 ? 2 : 4;
+  const fromPlaylists = (await Promise.all(playlists.slice(0, first).map((p) => playlistItems(p, 60)))).flat();
+
+  const tracks = uniqueTracks([...songs, ...fromPlaylists].map((i) => toTrack(i, "song"))).slice(0, MAX_GENRE_TRACKS);
+  if (!tracks.length && !albums.length) throw new HttpError(404, "Nada encontrado para este gênero.");
+
+  // The genre's own song and album shelves weigh more than playlists.
+  const pool = rankArtists(
+    [
+      { items: songs, weight: 2, hits: true },
+      { items: albums, weight: 2, hits: false },
+      { items: fromPlaylists, weight: 1, hits: true },
+    ],
+    new Set(),
+  );
+  // More artists come from the remaining editorial playlists; community ones only when there is nothing else.
+  const rest = playlists.slice(first);
+  const queue = rest.some((p) => /RDCLAK/.test(p)) ? rest.filter((p) => /RDCLAK/.test(p)) : rest;
+
+  return {
+    page: {
+      id,
+      name: all.find((g) => g.id === id)?.name ?? "",
+      artists: pool.slice(0, ARTISTS_PAGE),
+      hasMoreArtists: pool.length > ARTISTS_PAGE || queue.length > 0,
+      tracks,
+    },
+    pool,
+    queue,
+  };
+});
+
+export const genre = async (id: string): Promise<GenrePage> => (await genreState(id)).page;
+
+/** Reads the next few playlists of the genre and appends the artists they bring. */
+async function extend(state: GenreState): Promise<void> {
+  const batch = state.queue.splice(0, PLAYLISTS_PER_ROUND);
+  const items = (await Promise.all(batch.map((p) => playlistItems(p, 100)))).flat();
+  state.pool.push(...rankArtists([{ items, weight: 1, hits: true }], new Set(state.pool.map((a) => a.id))));
+  if (state.pool.length >= MAX_ARTISTS) state.queue.length = 0;
+}
+
+/** The next page of a genre's artists, reading more of its playlists when the ones found so far run out. */
+export async function genreArtists(id: string, offset: number): Promise<{ artists: GenreArtist[]; hasMore: boolean }> {
+  const state = await genreState(id);
+  // A few rounds at most per request, so a run of playlists with no new names can't stall it.
+  for (let round = 0; round < 5 && state.pool.length < offset + ARTISTS_PAGE && state.queue.length; round++) {
+    // Two "load more" taps at once share the same read instead of skipping playlists.
+    state.extending ??= extend(state).finally(() => (state.extending = undefined));
+    await state.extending;
+  }
+  return {
+    artists: state.pool.slice(offset, offset + ARTISTS_PAGE),
+    hasMore: state.pool.length > offset + ARTISTS_PAGE || state.queue.length > 0,
+  };
+}
+
+/** An artist's most played songs (the "Top songs" shelf, expanded to its full list). */
+export const artist = cached(30 * MINUTE, async (id): Promise<ArtistPage> => {
+  const page = await withClient((yt) => yt.music.getArtist(id)).catch(() => {
+    throw new HttpError(502, "Não foi possível abrir este artista agora. Tente de novo.");
+  });
+  const header: any = page.header;
+  const shelf: any = page.sections.find((s) => s.type === "MusicShelf");
+  let items: any[] = itemsOf(shelf);
+  // The shelf shows 5; its "show all" link is a playlist with the full ranking.
+  const fullList = shelf?.endpoint?.payload?.browseId;
+  if (typeof fullList === "string" && fullList.startsWith("VL")) {
+    const more = await playlistItems(fullList, MAX_HITS * 2);
+    if (more.length) items = more;
+  }
+  const banner = (header?.thumbnail?.contents ?? header?.thumbnail ?? [])[0]?.url;
+  const name = text(header?.title);
+  const tracks = uniqueTracks(items.map((i) => toTrack(i, "song"))).slice(0, MAX_HITS);
+  if (!name && !tracks.length) throw new HttpError(404, "Artista não encontrado.");
+  return {
+    id,
+    name,
+    description: text(header?.description),
+    banner: typeof banner === "string" && banner.startsWith("https://") ? banner : "",
+    tracks,
+  };
+});

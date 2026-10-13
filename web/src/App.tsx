@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { Route, Routes, useLocation, useNavigate } from "react-router";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { Route, Routes, useLocation, useNavigate, useNavigationType } from "react-router";
 import { AddToPlaylistDialog, ShortcutsDialog } from "./components/Dialogs";
 import { MiniPlayer, TabBar } from "./components/MobileChrome";
 import { NowPlayingSheet, PanelDrawer, SidePanel } from "./components/NowPlaying";
@@ -18,7 +18,10 @@ import { usePlayer } from "./player/player";
 import { useLibrary } from "./stores/library";
 import { openSettings, useSystem } from "./stores/system";
 import { toast, useUi } from "./stores/ui";
+import Artist from "./views/Artist";
+import BatchSearch from "./views/BatchSearch";
 import Collection from "./views/Collection";
+import Genre from "./views/Genre";
 import Home from "./views/Home";
 import Library from "./views/Library";
 import Search from "./views/Search";
@@ -28,6 +31,7 @@ const SHEET_HASH = "#tocando";
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const isMd = useMediaQuery(MD);
   const panelOpen = useUi((s) => s.panelOpen);
   const hasTrack = usePlayer((s) => s.queue.length > 0);
@@ -65,9 +69,25 @@ export default function App() {
     return () => clearTimeout(t);
   }, [loadSystem]);
 
-  // New page, back to the top (the sheet hash is not a page change).
+  // Where each history entry was scrolled to, so Back returns to the same spot (say, deep in a genre's artists).
+  const scrollMemo = useRef(new Map<string, number>());
+  const entryKey = useRef(location.key);
   useEffect(() => {
+    const el = main.current;
+    if (!el) return;
+    const onScroll = () => scrollMemo.current.set(entryKey.current, el.scrollTop);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // New page, back to the top; Back and Forward return to where it was (the sheet hash is not a page change).
+  // A layout effect, so the scroll the old page's removal causes is already filed under the new entry.
+  useLayoutEffect(() => {
+    entryKey.current = location.key;
+    const saved = navigationType === "POP" ? scrollMemo.current.get(location.key) : undefined;
     main.current?.scrollTo({ top: 0 });
+    // Pages that keep their data (genre, artist) render in full right away, so one frame is enough.
+    if (saved) requestAnimationFrame(() => main.current?.scrollTo({ top: saved }));
   }, [location.pathname]);
 
   const sheetOpen = !isMd && location.hash === SHEET_HASH;
@@ -94,6 +114,9 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/buscar" element={<Search />} />
+            <Route path="/buscar/lista" element={<BatchSearch />} />
+            <Route path="/buscar/genero/:id" element={<Genre />} />
+            <Route path="/buscar/artista/:id" element={<Artist />} />
             <Route path="/biblioteca" element={<Library />} />
             <Route path="/favoritas" element={<Collection kind="favorites" />} />
             <Route path="/historico" element={<Collection kind="history" />} />

@@ -1,7 +1,7 @@
 {
   "name": "musike-desktop",
   "productName": "Musike",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "Sua música, sem interrupção.",
   "author": "Musike",
   "private": true,
@@ -58,7 +58,8 @@
         "pt_BR"
       ],
       "language": "1046",
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
     }
   },
   "devDependencies": {

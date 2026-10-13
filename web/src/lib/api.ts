@@ -1,4 +1,4 @@
-import type { Library, Playlist, Track } from "./types";
+import type { ArtistPage, Genre, GenreArtist, GenrePage, Library, Playlist, Track } from "./types";
 
 export type ErrorCode = "tool_missing" | "maybe_outdated" | "bot_check";
 
@@ -62,6 +62,11 @@ export const api = {
   suggest: (q: string, signal?: AbortSignal) =>
     request<{ suggestions: string[] }>(`/api/suggest?q=${encodeURIComponent(q)}`, { signal }).then((r) => r.suggestions),
   radio: (id: string) => request<{ tracks: Track[] }>(`/api/radio/${id}`).then((r) => r.tracks),
+  genres: () => request<{ genres: Genre[] }>("/api/genres").then((r) => r.genres),
+  genre: (id: string, signal?: AbortSignal) => request<GenrePage>(`/api/genres/${encodeURIComponent(id)}`, { signal }),
+  genreArtists: (id: string, offset: number) =>
+    request<{ artists: GenreArtist[]; hasMore: boolean }>(`/api/genres/${encodeURIComponent(id)}/artists?offset=${offset}`),
+  artist: (id: string, signal?: AbortSignal) => request<ArtistPage>(`/api/artists/${encodeURIComponent(id)}`, { signal }),
   /** The music video matching a song, or null when YouTube has none. */
   videoFor: (t: Track) =>
     request<{ track: Track | null }>(
@@ -75,13 +80,15 @@ export const api = {
 
   library: () => request<Library>("/api/library"),
   addFavorite: (t: Track) => request<{ favorites: Track[] }>(`/api/favorites/${t.id}`, { method: "PUT", json: t }),
+  addFavorites: (tracks: Track[]) => request<{ favorites: Track[] }>("/api/favorites", { method: "POST", json: { tracks } }),
   removeFavorite: (id: string) => request<{ favorites: Track[] }>(`/api/favorites/${id}`, { method: "DELETE" }),
   pushHistory: (t: Track) => request<{ history: Track[] }>("/api/history", { method: "POST", json: t }),
   createPlaylist: (name: string, tracks: Track[] = []) =>
     request<Playlist>("/api/playlists", { method: "POST", json: { name, tracks } }),
   renamePlaylist: (id: string, name: string) => request<Playlist>(`/api/playlists/${id}`, { method: "PATCH", json: { name } }),
   deletePlaylist: (id: string) => request<void>(`/api/playlists/${id}`, { method: "DELETE" }),
-  addToPlaylist: (id: string, t: Track) => request<Playlist>(`/api/playlists/${id}/tracks`, { method: "POST", json: t }),
+  addToPlaylist: (id: string, t: Track | Track[]) =>
+    request<Playlist>(`/api/playlists/${id}/tracks`, { method: "POST", json: Array.isArray(t) ? { tracks: t } : t }),
   removeFromPlaylist: (id: string, trackId: string) =>
     request<Playlist>(`/api/playlists/${id}/tracks/${trackId}`, { method: "DELETE" }),
 

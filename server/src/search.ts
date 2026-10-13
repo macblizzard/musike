@@ -15,7 +15,7 @@ function yt(): Promise<Innertube> {
 }
 
 /** Retries once with a fresh InnerTube session, since sessions can go stale. */
-async function withClient<T>(fn: (yt: Innertube) => Promise<T>): Promise<T> {
+export async function withClient<T>(fn: (yt: Innertube) => Promise<T>): Promise<T> {
   try {
     return await fn(await yt());
   } catch {
@@ -24,7 +24,7 @@ async function withClient<T>(fn: (yt: Innertube) => Promise<T>): Promise<T> {
   }
 }
 
-function sized(url: string | undefined, px: number): string {
+export function sized(url: string | undefined, px: number): string {
   if (!url) return "";
   // googleusercontent / ggpht thumbnails encode their size after "="
   if (/googleusercontent\.com|ggpht\.com/.test(url)) return url.replace(/=w\d+-h\d+[^&]*$/, `=w${px}-h${px}-l90-rj`);
@@ -36,10 +36,10 @@ function videoThumbs(id: string) {
   return { thumb: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`, art: `https://i.ytimg.com/vi/${id}/hq720.jpg` };
 }
 
-const text = (v: unknown): string => (v == null ? "" : typeof v === "string" ? v : String((v as { toString(): string }).toString()));
+export const text = (v: unknown): string => (v == null ? "" : typeof v === "string" ? v : String((v as { toString(): string }).toString()));
 
 // youtubei.js node shapes differ between item types, so read them defensively.
-function toTrack(item: any, kind: Track["kind"]): Track | null {
+export function toTrack(item: any, kind: Track["kind"]): Track | null {
   const id: string | undefined = item.id ?? item.video_id;
   if (!id || !VIDEO_ID.test(id)) return null;
   const artists: string[] = (item.artists ?? item.authors ?? []).map((a: { name: string }) => a.name).filter(Boolean);

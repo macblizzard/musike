@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, ipcMain, Menu, screen, shell } from "electron";
 import type { RunningServer } from "../../server/src/app.js";
+import { backupLibraryOnUpdate } from "./backup.js";
 
 // No top-level await in this file: Electron only fires "ready" after the entry module finishes
 // evaluating, so awaiting it at the top level would hang forever.
@@ -21,6 +22,9 @@ process.env.MUSIKE_DATA_DIR = path.join(userData, "data");
 process.env.MUSIKE_CACHE_DIR = path.join(userData, "cache");
 process.env.MUSIKE_BIN_DIR = path.join(userData, "bin");
 process.env.MUSIKE_WEB_DIST = app.isPackaged ? path.join(process.resourcesPath, "web") : path.resolve(here, "..", "..", "web", "dist");
+
+// A copy of the library from before each update, in userData/backups (the installer makes one too).
+backupLibraryOnUpdate(userData, app.getVersion());
 
 // The server reads its config when first imported, so load it only after the env above is set.
 const loadServer = async () => ({

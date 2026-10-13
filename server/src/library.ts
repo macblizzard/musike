@@ -72,6 +72,16 @@ export async function addFavorite(track: Track): Promise<Track[]> {
   return lib.favorites;
 }
 
+/** Adds many at once (in the given order, on top), skipping ones already there. */
+export async function addFavorites(tracks: Track[]): Promise<Track[]> {
+  const lib = await load();
+  const seen = new Set(lib.favorites.map((t) => t.id));
+  const added = tracks.filter((t) => !seen.has(t.id) && !!seen.add(t.id));
+  lib.favorites = [...added, ...lib.favorites];
+  await persist();
+  return lib.favorites;
+}
+
 export async function removeFavorite(id: string): Promise<Track[]> {
   const lib = await load();
   lib.favorites = lib.favorites.filter((t) => t.id !== id);
@@ -115,10 +125,12 @@ export async function deletePlaylist(pid: string): Promise<void> {
   await persist();
 }
 
-export async function addToPlaylist(pid: string, track: Track): Promise<Playlist> {
+export async function addToPlaylist(pid: string, tracks: Track | Track[]): Promise<Playlist> {
   const lib = await load();
   const p = findPlaylist(lib, pid);
-  if (!p.tracks.some((t) => t.id === track.id)) p.tracks.push(track);
+  for (const track of Array.isArray(tracks) ? tracks : [tracks]) {
+    if (!p.tracks.some((t) => t.id === track.id)) p.tracks.push(track);
+  }
   p.updatedAt = Date.now();
   await persist();
   return p;

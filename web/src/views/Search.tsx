@@ -1,7 +1,18 @@
-import { ArrowUpLeftIcon, LinkIcon, MagnifyingGlassIcon, PlayIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
+import {
+  ArrowRightIcon,
+  ArrowUpLeftIcon,
+  FunnelSimpleIcon,
+  LinkIcon,
+  ListBulletsIcon,
+  MagnifyingGlassIcon,
+  PlayIcon,
+  WarningCircleIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { Artwork } from "../components/Artwork";
+import { GenrePanel } from "../components/GenrePanel";
 import { EmptyState, PageHeader } from "../components/Page";
 import { TrackList, TrackListSkeleton } from "../components/TrackList";
 import { MD, useMediaQuery } from "../hooks/useMediaQuery";
@@ -9,6 +20,7 @@ import { api } from "../lib/api";
 import { cn } from "../lib/format";
 import type { Track } from "../lib/types";
 import { usePlayer } from "../player/player";
+import { parseList } from "./BatchSearch";
 
 const RECENT_KEY = "musike:recent-searches";
 
@@ -42,6 +54,9 @@ function videoIdFromUrl(text: string): string | null {
 
 type Kind = "song" | "video";
 
+// The genre panel stays open when coming back from a genre page.
+let genresOpenMemo = false;
+
 export default function Search() {
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
@@ -54,11 +69,19 @@ export default function Search() {
   const [recent, setRecent] = useState(readRecent);
   const [linkTrack, setLinkTrack] = useState<Track | "loading" | "error" | null>(null);
   const [retry, setRetry] = useState(0);
+  const [genresOpen, setGenresOpenState] = useState(() => genresOpenMemo);
   const input = useRef<HTMLInputElement>(null);
   const isMd = useMediaQuery(MD);
   const playTrack = usePlayer((s) => s.playTrack);
 
   const linkId = videoIdFromUrl(text);
+  // "a, b, c" probably means three songs; offer to search each one (titles can have commas, so only offer).
+  const listTerms = linkId || !text.includes(",") ? [] : parseList(text);
+
+  const setGenresOpen = (open: boolean) => {
+    genresOpenMemo = open;
+    setGenresOpenState(open);
+  };
 
   const setQuery = (next: string, nextKind = kind) => {
     const p = new URLSearchParams();
@@ -207,6 +230,21 @@ export default function Search() {
           </div>
         </form>
 
+        {listTerms.length > 1 && (
+          <Link
+            to="/buscar/lista"
+            state={{ text }}
+            className="flex items-center gap-3 rounded-[16px] bg-accent-soft px-4 py-3 text-sm ring-1 ring-line transition-colors hover:bg-surface-3"
+          >
+            <ListBulletsIcon size={20} className="shrink-0 text-accent-text" />
+            <span className="min-w-0 flex-1">
+              <span className="font-medium">Buscar {listTerms.length} músicas separadamente</span>
+              <span className="block truncate text-fg-2">{listTerms.join(" · ")}</span>
+            </span>
+            <ArrowRightIcon size={18} className="shrink-0 text-fg-2" />
+          </Link>
+        )}
+
         {suggestions.length > 0 && (
           <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
             {suggestions.map((s) => (
@@ -226,11 +264,38 @@ export default function Search() {
         )}
 
         {!linkId && (
-          <div role="tablist" aria-label="Tipo de resultado" className="flex gap-2">
-            {tab("song", "Músicas")}
-            {tab("video", "Vídeos")}
+          <div className="flex flex-wrap items-center gap-2">
+            <div role="tablist" aria-label="Tipo de resultado" className="flex gap-2">
+              {tab("song", "Músicas")}
+              {tab("video", "Vídeos")}
+            </div>
+            <span className="flex-1" />
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-expanded={genresOpen}
+                aria-controls="genre-panel"
+                onClick={() => setGenresOpen(!genresOpen)}
+                className={cn(
+                  "flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors",
+                  genresOpen ? "bg-accent-soft text-accent-text" : "text-fg-2 hover:bg-surface-3 hover:text-fg",
+                )}
+              >
+                <FunnelSimpleIcon size={16} /> Gêneros
+              </button>
+              <Link
+                to="/buscar/lista"
+                aria-label="Buscar lista"
+                title="Buscar lista"
+                className="flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-fg-2 hover:bg-surface-3 hover:text-fg"
+              >
+                <ListBulletsIcon size={16} /> <span className="hidden sm:inline">Buscar lista</span>
+              </Link>
+            </div>
           </div>
         )}
+
+        {!linkId && genresOpen && <GenrePanel id="genre-panel" />}
       </div>
 
       <div className="mt-4 px-2 md:px-3">

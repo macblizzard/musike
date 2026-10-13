@@ -8,11 +8,12 @@ interface LibraryState extends Library {
   load: () => Promise<void>;
   isFavorite: (id: string) => boolean;
   toggleFavorite: (t: Track) => Promise<void>;
+  addFavorites: (tracks: Track[]) => Promise<void>;
   recordPlay: (t: Track) => void;
   createPlaylist: (name: string, tracks?: Track[]) => Promise<Playlist | null>;
   renamePlaylist: (id: string, name: string) => Promise<void>;
   deletePlaylist: (id: string) => Promise<void>;
-  addToPlaylist: (id: string, t: Track) => Promise<void>;
+  addToPlaylist: (id: string, t: Track | Track[]) => Promise<void>;
   removeFromPlaylist: (id: string, trackId: string) => Promise<void>;
 }
 
@@ -45,6 +46,21 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const { favorites } = on ? await api.addFavorite(track) : await api.removeFavorite(track.id);
       set({ favorites });
       toast(on ? "Adicionada às Favoritas" : "Removida das Favoritas");
+    } catch (e) {
+      set({ favorites: prev });
+      toast((e as Error).message, "error");
+    }
+  },
+
+  addFavorites: async (tracks) => {
+    const prev = get().favorites;
+    const fresh = tracks.filter((t) => !prev.some((f) => f.id === t.id));
+    if (!fresh.length) return toast("Já estavam todas nas Favoritas");
+    set({ favorites: [...fresh, ...prev] });
+    try {
+      const { favorites } = await api.addFavorites(fresh);
+      set({ favorites });
+      toast(fresh.length === 1 ? "Adicionada às Favoritas" : `${fresh.length} faixas adicionadas às Favoritas`);
     } catch (e) {
       set({ favorites: prev });
       toast((e as Error).message, "error");
@@ -89,11 +105,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     }
   },
 
-  addToPlaylist: async (id, track) => {
+  addToPlaylist: async (id, tracks) => {
     try {
-      const p = await api.addToPlaylist(id, track);
+      const before = get().playlists.find((p) => p.id === id)?.tracks.length ?? 0;
+      const p = await api.addToPlaylist(id, tracks);
       set((s) => ({ playlists: replacePlaylist(s.playlists, p) }));
-      toast(`Adicionada a "${p.name}"`);
+      const added = p.tracks.length - before;
+      if (!Array.isArray(tracks) || added === 1) toast(`Adicionada a "${p.name}"`);
+      else toast(added ? `${added} faixas adicionadas a "${p.name}"` : `Já estavam todas em "${p.name}"`);
     } catch (e) {
       toast((e as Error).message, "error");
     }

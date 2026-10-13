@@ -7,30 +7,35 @@ import { Artwork } from "./Artwork";
 import { Modal } from "./Modal";
 
 export function AddToPlaylistDialog() {
-  const track = useUi((s) => s.addToPlaylist);
+  const tracks = useUi((s) => s.addToPlaylist);
   const close = useUi((s) => s.openAddToPlaylist);
   const playlists = useLibrary((s) => s.playlists);
   const add = useLibrary((s) => s.addToPlaylist);
   const create = useLibrary((s) => s.createPlaylist);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
+  const many = !!tracks && tracks.length > 1;
 
   useEffect(() => {
-    if (track) {
+    if (tracks) {
       setCreating(playlists.length === 0);
       setName("");
     }
-  }, [track]);
+  }, [tracks]);
 
   const onCreate = async (e: FormEvent) => {
     e.preventDefault();
-    if (!track || !name.trim()) return;
-    const p = await create(name, [track]);
+    if (!tracks || !name.trim()) return;
+    const p = await create(name, tracks);
     if (p) close(null);
   };
 
   return (
-    <Modal open={!!track} onClose={() => close(null)} title="Adicionar à playlist">
+    <Modal
+      open={!!tracks}
+      onClose={() => close(null)}
+      title={many ? `Adicionar ${tracks?.length} faixas à playlist` : "Adicionar à playlist"}
+    >
       {creating ? (
         <form onSubmit={onCreate} className="flex flex-col gap-3">
           <label htmlFor="new-playlist" className="text-sm text-fg-2">
@@ -73,15 +78,16 @@ export function AddToPlaylistDialog() {
             <span className="font-medium">Nova playlist</span>
           </button>
           {playlists.map((p) => {
-            const has = !!track && p.tracks.some((t) => t.id === track.id);
+            // Done only when it already has every track being added.
+            const has = !!tracks && tracks.every((x) => p.tracks.some((t) => t.id === x.id));
             return (
               <button
                 key={p.id}
                 type="button"
                 disabled={has}
                 onClick={() => {
-                  if (!track) return;
-                  void add(p.id, track);
+                  if (!tracks) return;
+                  void add(p.id, many ? tracks : tracks[0]);
                   close(null);
                 }}
                 className={cn("flex items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-surface-3", has && "opacity-60")}

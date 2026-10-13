@@ -51,6 +51,8 @@ O Musike nasceu da ideia dos antigos bots de música do Discord: um servidor que
 **Ouvir**
 - Busca no YouTube Music com abas **Músicas** e **Vídeos** e sugestões enquanto você digita
 - Cole um **link do YouTube** na busca para tocar direto
+- **Explorar por gênero:** o filtro **Gêneros** na busca abre os gêneros do YouTube Music (Rock, Sertanejo, MPB, Metal...). Cada um mostra as bandas e artistas do gênero (toque em um para ver os maiores sucessos) ou todas as músicas numa lista só, com seleção para tocar, favoritar ou mandar para uma playlist
+- **Buscar lista:** escreva várias músicas separadas por vírgula ("Evidências, Trem-Bala, ..."); o Musike busca cada uma, já seleciona o melhor resultado (dá para trocar) e você toca, favorita ou manda as selecionadas para uma playlist nova ou existente
 - Fila com tocar a seguir, aleatório e repetir (fila ou faixa)
 - **Rádio automático:** quando a fila acaba, continua com músicas parecidas
 - Avanço e retrocesso instantâneos (streaming com HTTP Range) e próxima faixa pré-carregada
@@ -155,6 +157,9 @@ Na primeira abertura, uma tela mostra o download das ferramentas oficiais: **yt-
 | `bin` | yt-dlp, Deno e FFmpeg do próprio Musike (atualizáveis em Ajustes) |
 | `data` | `library.json` com playlists, favoritas e histórico |
 | `cache` | vídeos HD já baixados |
+| `backups` | cópias da biblioteca feitas a cada atualização |
+
+**Atualizar é só instalar a versão nova por cima.** A pasta `%APPDATA%\Musike` fica fora da pasta do programa e nem a atualização nem a desinstalação a apagam. Por segurança, antes de trocar a versão o instalador ainda copia a biblioteca para `backups\library-antes-de-instalar-<versão>.json`, e o app guarda outra cópia datada na primeira abertura de cada versão (mantém as 5 mais recentes). Para restaurar uma delas, feche o Musike e copie o arquivo por cima de `data\library.json`.
 
 > O instalador não é assinado digitalmente. Na primeira execução o Windows mostra "O Windows protegeu o computador": clique em **Mais informações** e depois **Executar assim mesmo**.
 
@@ -261,16 +266,21 @@ Todas as rotas respondem JSON. Erros vêm como `{ "error": "mensagem", "code"?: 
 | `GET` | `/api/search?q=&type=song\|video` | Busca no YouTube Music |
 | `GET` | `/api/suggest?q=` | Sugestões de busca |
 | `GET` | `/api/radio/:id` | Faixas relacionadas (rádio) |
+| `GET` | `/api/genres` | Gêneros do YouTube Music |
+| `GET` | `/api/genres/:gid` | Artistas e músicas de um gênero |
+| `GET` | `/api/genres/:gid/artists?offset=` | Mais artistas do gênero ("Carregar mais") |
+| `GET` | `/api/artists/:aid` | Maiores sucessos de um artista |
 | `GET` | `/api/video-for/:id?title=&artist=&duration=` | Clipe oficial de uma música |
 | `POST` | `/api/prepare/:id` | Resolve o stream antes de tocar |
 | `GET` | `/api/stream/:id/audio` | Áudio com HTTP Range |
 | `GET` | `/api/stream/:id/video?q=sd\|hd` | Vídeo com HTTP Range |
 | `GET` | `/api/library` | Biblioteca completa |
 | `PUT` / `DELETE` | `/api/favorites/:id` | Favoritar / desfavoritar |
+| `POST` | `/api/favorites` | Favorita várias de uma vez (`{ tracks }`) |
 | `POST` | `/api/history` | Registra uma faixa tocada |
 | `POST` | `/api/playlists` | Cria playlist |
 | `PATCH` / `DELETE` | `/api/playlists/:pid` | Renomeia / exclui |
-| `POST` / `DELETE` | `/api/playlists/:pid/tracks[/:id]` | Adiciona / remove faixa |
+| `POST` / `DELETE` | `/api/playlists/:pid/tracks[/:id]` | Adiciona (uma faixa ou `{ tracks }`) / remove faixa |
 | `POST` | `/api/library/import` | Importa backup (`{ backup, mode: "merge" \| "replace" }`) |
 | `GET` | `/api/system` | Versões do yt-dlp, Deno, FFmpeg e downloads |
 | `POST` | `/api/system/ytdlp` | Atualiza ou instala o yt-dlp (`{ channel: "stable" \| "nightly" }`) |

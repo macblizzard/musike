@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { createServer } from "node:net";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
+import { ARTIST_ID, artist, GENRE_ID, genre, genreArtists, genres } from "./browse.js";
 import { config } from "./config.js";
 import * as library from "./library.js";
 import { findVideoFor, radio, search, suggestions } from "./search.js";
@@ -74,6 +75,31 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
 
   app.get("/api/radio/:id", async (req) => ({ tracks: await radio(videoId(req.params)) }));
 
+  // Browse by genre: genre → its artists or all its songs → an artist's top songs
+
+  app.get("/api/genres", async () => ({ genres: await genres("") }));
+
+  app.get("/api/genres/:gid", async (req) => {
+    const { gid } = req.params as { gid: string };
+    if (!GENRE_ID.test(gid)) throw new HttpError(400, "Gênero inválido.");
+    return genre(gid);
+  });
+
+  /** "Load more" for a genre's artists: `offset` is how many the app already shows. */
+  app.get("/api/genres/:gid/artists", async (req) => {
+    const { gid } = req.params as { gid: string };
+    const offset = Number((req.query as { offset?: string }).offset ?? 0);
+    if (!GENRE_ID.test(gid)) throw new HttpError(400, "Gênero inválido.");
+    if (!Number.isInteger(offset) || offset < 0 || offset > 1000) throw new HttpError(400, "Posição inválida.");
+    return genreArtists(gid, offset);
+  });
+
+  app.get("/api/artists/:aid", async (req) => {
+    const { aid } = req.params as { aid: string };
+    if (!ARTIST_ID.test(aid)) throw new HttpError(400, "Artista inválido.");
+    return artist(aid);
+  });
+
   /** The music video for a song, so "Vídeo" mode can show the clip instead of a still cover. */
   app.get("/api/video-for/:id", async (req) => {
     const { title, artist, duration } = req.query as { title?: string; artist?: string; duration?: string };
@@ -122,6 +148,13 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
     return { favorites: await library.addFavorite(track) };
   });
 
+  /** Bulk add, e.g. from the list search. */
+  app.post("/api/favorites", async (req) => {
+    const { tracks } = (req.body ?? {}) as { tracks?: unknown };
+    if (!Array.isArray(tracks)) throw new HttpError(400, "Envie uma lista de faixas.");
+    return { favorites: await library.addFavorites(tracks.slice(0, 500).map(library.sanitizeTrack)) };
+  });
+
   app.delete("/api/favorites/:id", async (req) => ({ favorites: await library.removeFavorite(videoId(req.params)) }));
 
   app.post("/api/history", async (req) => ({ history: await library.pushHistory(library.sanitizeTrack(req.body)) }));
@@ -143,9 +176,12 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
     return reply.code(204).send();
   });
 
-  app.post("/api/playlists/:pid/tracks", async (req) =>
-    library.addToPlaylist((req.params as { pid: string }).pid, library.sanitizeTrack(req.body)),
-  );
+  /** One track, or `{ tracks: [...] }` to add many at once. */
+  app.post("/api/playlists/:pid/tracks", async (req) => {
+    const body = (req.body ?? {}) as { tracks?: unknown };
+    const tracks = Array.isArray(body.tracks) ? body.tracks.slice(0, 500).map(library.sanitizeTrack) : library.sanitizeTrack(req.body);
+    return library.addToPlaylist((req.params as { pid: string }).pid, tracks);
+  });
 
   app.delete("/api/playlists/:pid/tracks/:id", async (req) =>
     library.removeFromPlaylist((req.params as { pid: string }).pid, videoId(req.params)),

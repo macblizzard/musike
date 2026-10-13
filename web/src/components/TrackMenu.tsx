@@ -91,7 +91,7 @@ export function TrackMenu() {
       >
         {isFavorite ? "Remover das Favoritas" : "Adicionar às Favoritas"}
       </Item>
-      <Item icon={<PlaylistIcon size={18} />} onClick={() => openAddToPlaylist(menu.track)}>
+      <Item icon={<PlaylistIcon size={18} />} onClick={() => openAddToPlaylist([menu.track])}>
         Adicionar à playlist
       </Item>
       {menu.playlistId && (

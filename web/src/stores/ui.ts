@@ -32,7 +32,8 @@ interface UiState {
   panelTab: PanelTab;
   toasts: Toast[];
   menu: TrackMenuState | null;
-  addToPlaylist: Track | null;
+  /** Tracks waiting for the "add to playlist" dialog: one from a track menu, many from the list search. */
+  addToPlaylist: Track[] | null;
   shortcutsOpen: boolean;
   settingsOpen: boolean;
   /** Cinema view: the video maximized over everything. */
@@ -46,7 +47,7 @@ interface UiState {
   dismissToast: (id: number) => void;
   openMenu: (m: TrackMenuState) => void;
   closeMenu: () => void;
-  openAddToPlaylist: (t: Track | null) => void;
+  openAddToPlaylist: (tracks: Track[] | null) => void;
   setShortcutsOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setTheater: (open: boolean) => void;

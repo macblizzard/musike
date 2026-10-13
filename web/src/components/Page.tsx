@@ -1,5 +1,6 @@
-import { GearSixIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, GearSixIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
+import { useNavigate } from "react-router";
 import { cn } from "../lib/format";
 import { needsAttention, useSystem } from "../stores/system";
 import { useUi } from "../stores/ui";
@@ -57,6 +58,20 @@ export function Section({ title, action, children, className }: { title: string;
       </div>
       {children}
     </section>
+  );
+}
+
+/** Back in history when there is somewhere to go back to (in the app), else to `fallback`. */
+export function BackButton({ fallback, label = "Voltar" }: { fallback: string; label?: string }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => ((window.history.state as { idx?: number } | null)?.idx ? navigate(-1) : navigate(fallback))}
+      className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-fg-2 hover:bg-surface-3 hover:text-fg"
+    >
+      <ArrowLeftIcon size={16} /> {label}
+    </button>
   );
 }
 
