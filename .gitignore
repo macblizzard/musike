@@ -5,9 +5,11 @@ dev-dist/
 desktop/dist/
 desktop/release/
 
-# Local data (library, HD video cache)
+# Local data (library, HD video cache) — the deployment writes these at the repo root
 server/data/
 server/cache/
+/data/
+/cache/
 
 # Third-party agent skills, restorable from skills-lock.json (npx skills)
 .claude/
@@ -16,5 +18,8 @@ server/cache/
 # Misc
 *.log
 .env
+.env.*
+!.env.example
+*cookies*.txt
 .DS_Store
 Thumbs.db
