@@ -1,4 +1,4 @@
-import { ClockCounterClockwiseIcon, HeartIcon, MagnifyingGlassIcon, PlayIcon } from "@phosphor-icons/react";
+import { ClockCounterClockwiseIcon, DownloadSimpleIcon, HeartIcon, MagnifyingGlassIcon, PlayIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { Artwork } from "../components/Artwork";
@@ -10,6 +10,7 @@ import { paths } from "../lib/routes";
 import type { Track } from "../lib/types";
 import { usePlayer } from "../player/player";
 import { useLibrary } from "../stores/library";
+import { useOffline } from "../stores/offline";
 
 function Shortcut({ to, label, tracks, cover }: { to: string; label: string; tracks: Track[]; cover: ReactNode }) {
   const playList = usePlayer((s) => s.playList);
@@ -52,10 +53,11 @@ function RecentCard({ track, onPlay }: { track: Track; onPlay: () => void }) {
 
 export default function Home() {
   const { favorites, playlists, history, status } = useLibrary();
+  const downloaded = useOffline((s) => s.tracks);
   const playList = usePlayer((s) => s.playList);
   const navigate = useNavigate();
   const t = useT();
-  const empty = status === "ready" && !favorites.length && !playlists.length && !history.length;
+  const empty = status === "ready" && !favorites.length && !playlists.length && !history.length && !downloaded.length;
 
   return (
     <div className="pb-8">
@@ -109,6 +111,18 @@ export default function Home() {
                 </span>
               }
             />
+            {downloaded.length > 0 && (
+              <Shortcut
+                to={paths.downloaded}
+                label={t.nav.downloaded}
+                tracks={downloaded}
+                cover={
+                  <span className="grid size-full place-items-center bg-accent-soft text-accent-text">
+                    <DownloadSimpleIcon size={24} weight="bold" />
+                  </span>
+                }
+              />
+            )}
             {playlists.slice(0, 6).map((p) => (
               <Shortcut
                 key={p.id}

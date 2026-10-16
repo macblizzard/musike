@@ -46,6 +46,7 @@ cannot silently drop them. Re-check them after any upstream update:
 | `web/src/stores/offline.ts` | the offline store — one source of truth for every offline surface |
 | `web/src/views/Library.tsx` | the Downloaded entry in the Library |
 | `web/src/components/Rail.tsx` | and in the left rail, beside Favorites and History |
+| `web/src/views/Home.tsx` | and as a Home shortcut — the collection list phones actually see |
 | `web/src/components/TrackMenu.tsx` | per-track keep/release entry in the track menu |
 | `web/src/components/OfflineTrackButton.tsx` | keep/release button on the Now Playing screen and the player bar |
 | `web/src/components/NowPlaying.tsx` | that button beside the favourite in every track heading |
@@ -109,7 +110,9 @@ automatically — releasing the collection deletes them. iOS caps PWA storage an
 pressure, so treat this as a cache, not an archive.
 
 The Library lists a Downloaded entry whenever anything is held, and it opens the same collection
-layout as the rest. The tracks themselves are stored beside their audio, under a `?musike-meta`
+layout as the rest. So do the left rail and the Home shortcut grid — the rail is hidden below the
+`md` breakpoint, so on a phone Home and the Library are the only places that can list a collection.
+The tracks themselves are stored beside their audio, under a `?musike-meta`
 key, so the collection lists what is held without asking the network for anything; a track kept
 before that metadata existed is filled in from the library, so older downloads still appear.
 
