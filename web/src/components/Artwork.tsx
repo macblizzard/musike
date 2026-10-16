@@ -17,31 +17,51 @@ export function Artwork(props: Props) {
   return <ArtworkImage key={`${props.src ?? ""}|${props.fallback ?? ""}`} {...props} />;
 }
 
+/**
+ * YouTube answers a request for a thumbnail a video does not have with a 120x120 stand-in image
+ * and an ordinary 200, so a missing cover never fires `error` — it just renders as a grey tile.
+ * Anything that small is treated as a failure so the fallback gets used.
+ */
+const isPlaceholder = (img: HTMLImageElement) => img.naturalWidth > 0 && img.naturalWidth <= 120;
+
 function ArtworkImage({ src, fallback, alt = "", className, iconSize = 20 }: Props) {
   const [current, setCurrent] = useState(src || fallback);
   const [state, setState] = useState<"loading" | "ok" | "error">(src || fallback ? "loading" : "error");
+  const canFallBack = !!fallback && current !== fallback;
 
-  // Images served from cache can be complete before React attaches onLoad.
-  const imgRef = useCallback((img: HTMLImageElement | null) => {
-    if (img?.complete && img.naturalWidth > 0) setState("ok");
-  }, []);
+  const rejected = useCallback(() => {
+    if (canFallBack) setCurrent(fallback!);
+    else setState("error");
+  }, [canFallBack, fallback]);
+
+  // Images served from cache can be complete before React attaches onLoad, so the ref and onLoad
+  // both run the same check. The ref also re-runs once the fallback swap changes its identity,
+  // which covers a fallback that is already cached from elsewhere on the page.
+  const settle = useCallback(
+    (img: HTMLImageElement | null) => {
+      if (!img || !img.complete) return;
+      if (img.naturalWidth === 0 || (isPlaceholder(img) && canFallBack)) {
+        rejected();
+        return;
+      }
+      setState("ok");
+    },
+    [canFallBack, rejected],
+  );
 
   return (
     <div className={cn("relative shrink-0 overflow-hidden bg-surface-3", className)}>
       {state !== "error" && current && (
         <img
-          ref={imgRef}
+          ref={settle}
           src={current}
           alt={alt}
           loading="lazy"
           decoding="async"
           draggable={false}
           referrerPolicy="no-referrer"
-          onLoad={() => setState("ok")}
-          onError={() => {
-            if (fallback && current !== fallback) setCurrent(fallback);
-            else setState("error");
-          }}
+          onLoad={(e) => settle(e.currentTarget)}
+          onError={rejected}
           className={cn(
             "h-full w-full object-cover transition-opacity duration-300 ease-out-expo",
             state === "ok" ? "opacity-100" : "opacity-0",

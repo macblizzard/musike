@@ -11,7 +11,7 @@ import { langOf, msg, tr } from "./i18n.js";
 import { presentJob, startJob, systemInfo, type Channel } from "./system.js";
 import { refreshTools, type Tools } from "./tools.js";
 import { HttpError, VIDEO_ID } from "./types.js";
-import { downloadHd, pruneCache, resolveStreams } from "./ytdlp.js";
+import { downloadHd, progressiveAudio, pruneAudioCache, pruneCache, resolveStreams } from "./ytdlp.js";
 
 function videoId(params: unknown): string {
   const id = (params as { id?: string }).id ?? "";
@@ -119,7 +119,17 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
     return { id: r.id, title: r.title, duration: r.duration, hasSdVideo: !!r.video };
   });
 
-  app.get("/api/stream/:id/audio", (req, reply) => proxyStream(req, reply, videoId(req.params), "audio"));
+  /**
+   * Audio is served from a progressive remux of the track (see `progressiveAudio`); streaming
+   * YouTube's fragmented file directly is what makes iOS mis-read the duration and then play
+   * silence for minutes after each song. Tracks too long to cache keep streaming as before.
+   */
+  app.get("/api/stream/:id/audio", async (req, reply) => {
+    const id = videoId(req.params);
+    const file = await progressiveAudio(id);
+    if (file) return serveFile(req, reply, file, "audio/mp4");
+    return proxyStream(req, reply, id, "audio");
+  });
 
   app.get("/api/stream/:id/video", async (req, reply) => {
     const id = videoId(req.params);
@@ -207,6 +217,7 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
   await app.listen({ port, host });
 
   pruneCache().catch(() => {});
+  pruneAudioCache().catch(() => {});
   return { port, tools: found, close: () => app.close() };
 }
 

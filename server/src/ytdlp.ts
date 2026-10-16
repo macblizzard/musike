@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { createWriteStream, existsSync } from "node:fs";
 import { mkdir, readdir, rename, rm, stat, utimes } from "node:fs/promises";
 import path from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { ensureComponent } from "./bootstrap.js";
 import { config } from "./config.js";
 import { tools } from "./tools.js";
@@ -236,6 +238,115 @@ export function downloadHd(id: string): Promise<string> {
 
   downloads.set(id, job);
   return job;
+}
+
+const audioJobs = new Map<string, Promise<string | null>>();
+
+/**
+ * A progressive (non-fragmented) copy of a track's audio, remuxed into the cache.
+ *
+ * YouTube serves format 140 as a fragmented MP4: the `moov` carries no sample table and the
+ * timeline lives in `moof` fragments. Browsers rebuild it, but iOS/AVFoundation does not. It
+ * mis-reads the duration of such a file, plays the song, and then sits in silence until the
+ * wrong duration runs out — which is heard as minutes of blank audio at every track boundary.
+ * Stream-copying the audio into a plain progressive MP4 (no re-encode, no quality loss) gives
+ * the duration every player agrees on.
+ *
+ * Returns null when the track should keep streaming as-is: too long to cache, or no FFmpeg.
+ */
+export function progressiveAudio(id: string): Promise<string | null> {
+  const file = path.join(config.cacheDir, `${id}.m4a`);
+  if (existsSync(file)) {
+    // Mark as recently used for cache eviction.
+    const now = new Date();
+    utimes(file, now, now).catch(() => {});
+    return Promise.resolve(file);
+  }
+  const inflight = audioJobs.get(id);
+  if (inflight) return inflight;
+
+  const tmp = path.join(config.cacheDir, `${id}.part.m4a`);
+  const job = (async (): Promise<string | null> => {
+    const resolved = await resolveStreams(id);
+    if (resolved.duration > config.audioMaxSeconds) return null;
+    // Merging/remuxing needs FFmpeg; the desktop app fetches it on first use if it isn't there yet.
+    const ffmpeg = tools().ffmpeg ?? (config.binDir ? await ensureComponent("ffmpeg").then(() => tools().ffmpeg) : null);
+    if (!ffmpeg) return null;
+    await mkdir(config.cacheDir, { recursive: true });
+    await downloadAudio(id, tmp);
+    await remux(ffmpeg, tmp, file);
+    await rm(tmp, { force: true });
+    pruneAudioCache().catch(() => {});
+    return file;
+  })()
+    .catch(async (err: unknown) => {
+      await rm(tmp, { force: true }).catch(() => {});
+      console.warn(`[musike] progressive audio unavailable for ${id}:`, err instanceof Error ? err.message : err);
+      return null;
+    })
+    .finally(() => audioJobs.delete(id));
+
+  audioJobs.set(id, job);
+  return job;
+}
+
+/** Writes the resolved audio to a file at full speed, re-resolving once if the URL expired. */
+async function downloadAudio(id: string, file: string): Promise<void> {
+  const attempt = async (fresh: boolean): Promise<boolean> => {
+    if (fresh) invalidate(id);
+    const { audio } = await resolveStreams(id);
+    // googlevideo throttles a plain full-file GET to roughly 32 KiB/s; a byte range is not.
+    const res = await fetch(audio.url, { headers: { ...audio.headers, Range: "bytes=0-" } });
+    if (res.status === 403 || res.status === 410) {
+      await res.body?.cancel();
+      return false;
+    }
+    if (!res.ok || !res.body) {
+      throw new HttpError(502, msg("streamRefused", { status: res.status }), "maybe_outdated");
+    }
+    await pipeline(Readable.fromWeb(res.body as never), createWriteStream(file));
+    return true;
+  };
+  if (!(await attempt(false)) && !(await attempt(true))) {
+    throw new HttpError(502, msg("streamRefused", { status: 403 }), "maybe_outdated");
+  }
+}
+
+/** Stream-copies a fragmented MP4 into a progressive one: moov + sample table ahead of the data. */
+function remux(ffmpeg: string, input: string, output: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      ffmpeg,
+      ["-hide_banner", "-loglevel", "error", "-y", "-i", input, "-c", "copy", "-movflags", "+faststart", "-f", "mp4", output],
+      { windowsHide: true },
+    );
+    let stderr = "";
+    child.stderr.on("data", (d) => (stderr += d));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) return resolve();
+      reject(new Error(stderr.trim().split("\n").pop()?.slice(0, 200) || `ffmpeg exited ${code}`));
+    });
+  });
+}
+
+/** Keeps the progressive-audio cache under `config.audioCacheMaxBytes`, evicting least recently played first. */
+export async function pruneAudioCache(): Promise<void> {
+  if (!existsSync(config.cacheDir)) return;
+  const names = (await readdir(config.cacheDir)).filter((n) => n.endsWith(".m4a") && !n.endsWith(".part.m4a"));
+  const files = await Promise.all(
+    names.map(async (n) => {
+      const p = path.join(config.cacheDir, n);
+      const s = await stat(p);
+      return { p, size: s.size, used: s.mtimeMs };
+    }),
+  );
+  let total = files.reduce((sum, f) => sum + f.size, 0);
+  for (const f of files.sort((a, b) => a.used - b.used)) {
+    if (total <= config.audioCacheMaxBytes) break;
+    await rm(f.p, { force: true });
+    total -= f.size;
+  }
 }
 
 export async function ytdlpSearch(query: string, limit = 20) {

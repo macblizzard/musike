@@ -15,6 +15,10 @@ export const config = {
   cacheDir: process.env.MUSIKE_CACHE_DIR ?? path.join(root, "cache"),
   /** HD video cache limit; least recently played videos are evicted first. */
   cacheMaxBytes: Number(process.env.MUSIKE_CACHE_MAX_MB ?? 2048) * 1024 * 1024,
+  /** Progressive-audio cache limit (remuxed copies of played tracks), evicted least-recently-used first. */
+  audioCacheMaxBytes: Number(process.env.MUSIKE_AUDIO_CACHE_MAX_MB ?? 768) * 1024 * 1024,
+  /** Longer than this, a track streams as-is instead of being remuxed into the cache. */
+  audioMaxSeconds: Number(process.env.MUSIKE_AUDIO_MAX_SECONDS ?? 1800),
   webDist: process.env.MUSIKE_WEB_DIST ?? path.resolve(root, "..", "web", "dist"),
   /**
    * Private folder for yt-dlp, Deno and FFmpeg downloaded by Musike itself (the desktop app sets it).

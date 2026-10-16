@@ -72,10 +72,61 @@ videoEl.className = "block h-full w-full object-contain bg-black";
 
 const mediaFor = (k: Kind): HTMLMediaElement => (k === "video" ? videoEl : audio);
 
+/**
+ * Hand-off warm-up.
+ *
+ * iOS suspends a backgrounded PWA the moment nothing is playing and only wakes it up seconds
+ * (or minutes) later. A hand-off that waits for `ended` and then issues a fresh media request
+ * therefore never lands on time: the previous track stops, the page is suspended, and the next
+ * one only starts when iOS wakes the app again — the long silent gap between songs. So the
+ * next track's audio is fetched while the current one still plays, and playback moves over
+ * just before this one ends, leaving no moment without audio.
+ */
+const HANDOFF_LEAD_SECONDS = 0.5;
+/** Longer than this the file is too big to hold in memory; those stream as usual. */
+const WARM_MAX_SECONDS = 900;
+const WARM_KEEP = 3;
+
+const warmBlobs = new Map<string, string>();
+const warmJobs = new Map<string, Promise<string>>();
+
+/** Fetches a track's audio up front and returns a local URL for it. */
+export function warmTrack(id: string, duration: number): void {
+  if (!id || duration > WARM_MAX_SECONDS || warmBlobs.has(id) || warmJobs.has(id)) return;
+  const job = fetch(streamUrl(id, "audio", "sd"), { headers: { Range: "bytes=0-" } })
+    .then((res) => (res.ok ? res.blob() : Promise.reject(new Error(`stream ${res.status}`))))
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      warmBlobs.set(id, url);
+      trimWarm();
+      return url;
+    })
+    .catch(() => "")
+    .finally(() => warmJobs.delete(id));
+  warmJobs.set(id, job);
+}
+
+/** The warmed local URL for a track, when it is already in memory. */
+const warmUrl = (id: string): string | undefined => warmBlobs.get(id);
+
+/** Drops old warmed tracks, never revoking the one playing or the one about to play. */
+function trimWarm() {
+  if (warmBlobs.size <= WARM_KEEP) return;
+  const s = usePlayer.getState();
+  const keep = new Set([s.queue[s.index]?.id, s.queue[s.index + 1]?.id]);
+  for (const [id, url] of warmBlobs) {
+    if (warmBlobs.size <= WARM_KEEP) break;
+    if (keep.has(id)) continue;
+    URL.revokeObjectURL(url);
+    warmBlobs.delete(id);
+  }
+}
+
 let loaded: { id: string; kind: Kind; quality: Quality } | null = null;
 let pendingSeek = 0;
 let token = 0;
 let recordedToken = -1;
+let handoffFor = -1;
 
 const STORAGE_KEY = "musike:player";
 
@@ -200,9 +251,34 @@ export const usePlayer = create<PlayerState>((set, get) => {
     });
     media.volume = s.volume;
     media.muted = s.muted;
-    media.src = streamUrl(mediaIdFor(track, kind), kind, s.quality);
+    const mediaId = mediaIdFor(track, kind);
+    // A warmed track is already in memory, so starting it touches no network at all.
+    media.src = (kind === "audio" ? warmUrl(mediaId) : undefined) ?? streamUrl(mediaId, kind, s.quality);
     if (autoplay) play(media);
     setMetadata(track);
+  }
+
+  /**
+   * Moves to the next track just before this one ends, while audio is still playing. Waiting
+   * for `ended` is what breaks background playback on iOS: with nothing playing the page gets
+   * suspended, so the hand-off only runs when iOS wakes the app again — which is the long
+   * silent gap people hear between songs. The next track is already in memory (`warmTrack`),
+   * so the switch costs nothing.
+   *
+   * Only while the page is hidden: that is when iOS suspends it. With the app on screen the
+   * track is left to finish naturally — the warmed next track makes the `ended` hand-off
+   * immediate anyway — so nothing is cut short for someone watching the player.
+   */
+  function handOffBeforeEnd(media: HTMLMediaElement) {
+    if (document.visibilityState !== "hidden") return;
+    const s = get();
+    if (s.repeat === "one" || handoffFor === token || s.index >= s.queue.length - 1) return;
+    if (!Number.isFinite(media.duration) || media.duration <= 0) return;
+    if (media.duration - media.currentTime > HANDOFF_LEAD_SECONDS) return;
+    const next = s.queue[s.index + 1];
+    if (!next || !warmUrl(next.id)) return;
+    handoffFor = token;
+    load(s.index + 1);
   }
 
   async function continueWithRadio() {
@@ -235,7 +311,11 @@ export const usePlayer = create<PlayerState>((set, get) => {
     const upcoming = s.queue[s.index + 1];
     if (!upcoming) return;
     if (s.preferVideo) void lookupClip(upcoming).then((id) => api.prepare(id ?? upcoming.id).catch(() => {}));
-    else api.prepare(upcoming.id).catch(() => {});
+    else {
+      api.prepare(upcoming.id).catch(() => {});
+      // Pull the bytes now, while playback (and therefore the page) is still alive.
+      warmTrack(upcoming.id, upcoming.duration);
+    }
   }
 
   function onEnded() {
@@ -310,6 +390,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     media.addEventListener("timeupdate", () => {
       if (!isActive() || pendingSeek > 0) return;
       if (Math.abs(media.currentTime - get().position) >= 0.2) set({ position: media.currentTime });
+      handOffBeforeEnd(media);
     });
     media.addEventListener("progress", () => {
       if (!isActive() || !media.buffered.length) return;

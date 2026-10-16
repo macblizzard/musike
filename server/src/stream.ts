@@ -9,6 +9,13 @@ import { invalidate, resolveStreams, type StreamFormat } from "./ytdlp.js";
 const PASS_HEADERS = ["content-length", "content-range", "accept-ranges", "last-modified"];
 
 /**
+ * googlevideo throttles a plain full-file GET to roughly 32 KiB/s — a four-minute song then
+ * takes four minutes to arrive. The same file over any byte range comes back at line speed,
+ * so a request without a Range header is turned into `bytes=0-` for upstream.
+ */
+const FULL_RANGE = "bytes=0-";
+
+/**
  * Proxies a googlevideo stream, forwarding Range so the browser can seek natively.
  * googlevideo URLs are bound to the IP that resolved them, so the bytes must flow through this server.
  */
@@ -26,29 +33,46 @@ export async function proxyStream(req: FastifyRequest, reply: FastifyReply, id: 
     if (!reply.raw.writableFinished) controller.abort();
   });
 
-  const request = async (fmt: StreamFormat) => {
-    const headers: Record<string, string> = { ...fmt.headers };
-    const range = req.headers.range;
-    if (typeof range === "string") headers.Range = range;
+  const request = async (fmt: StreamFormat, range: string) => {
+    const headers: Record<string, string> = { ...fmt.headers, Range: range };
     return fetch(fmt.url, { headers, signal: controller.signal });
   };
 
+  // Multi-range requests ("a-b,c-d") come back from googlevideo as multipart/byteranges, which
+  // cannot be passed off as a single media file; serve the first range alone instead.
+  const rawRange = typeof req.headers.range === "string" ? req.headers.range : null;
+  const clientRange = rawRange ? rawRange.split(",")[0].trim() : null;
+
   let fmt = await pick(false);
-  let upstream = await request(fmt);
+  // "bytes=-N" (the tail) is answered with 416 by googlevideo; read the size and ask exactly.
+  const suffix = /^bytes=-(\d*)$/.exec(clientRange ?? "");
+  let forward = clientRange ?? FULL_RANGE;
+  let upstream = await request(fmt, forward);
+
+  if (suffix && upstream.status === 416) {
+    await upstream.body?.cancel();
+    const total = await contentSize(fmt);
+    const want = suffix[1] ? Math.min(Number(suffix[1]), total) : total;
+    forward = `bytes=${total - want}-${total - 1}`;
+    upstream = await request(fmt, forward);
+  }
   // Expired or rejected URL: resolve again once.
   if (upstream.status === 403 || upstream.status === 410) {
     await upstream.body?.cancel();
     fmt = await pick(true);
-    upstream = await request(fmt);
+    upstream = await request(fmt, forward);
   }
   if (!upstream.ok || !upstream.body) {
     throw new HttpError(502, msg("streamRefused", { status: upstream.status }), "maybe_outdated");
   }
 
-  reply.code(upstream.status);
+  // Upstream was always asked for a range; a client that wanted the whole file still gets a 200.
+  const partial = clientRange !== null;
+  reply.code(partial ? upstream.status : 200);
   reply.header("content-type", fmt.mime);
   reply.header("cache-control", "no-store");
   for (const h of PASS_HEADERS) {
+    if (h === "content-range" && !partial) continue;
     const v = upstream.headers.get(h);
     if (v) reply.header(h, v);
   }
@@ -57,6 +81,17 @@ export async function proxyStream(req: FastifyRequest, reply: FastifyReply, id: 
   const body = Readable.fromWeb(upstream.body as any);
   body.on("error", () => body.destroy());
   return reply.send(body);
+}
+
+/** Total size of a stream, taken from the Content-Range of a two-byte range request. */
+async function contentSize(fmt: StreamFormat): Promise<number> {
+  const res = await fetch(fmt.url, { headers: { ...fmt.headers, Range: "bytes=0-1" } });
+  const total = Number(/bytes \d+-\d+\/(\d+)/.exec(res.headers.get("content-range") ?? "")?.[1]);
+  await res.body?.cancel();
+  if (!Number.isFinite(total) || total <= 0) {
+    throw new HttpError(502, msg("streamRefused", { status: res.status }), "maybe_outdated");
+  }
+  return total;
 }
 
 /** Serves a local file with byte-range support (used for cached HD video). */
