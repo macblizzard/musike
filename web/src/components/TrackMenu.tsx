@@ -1,5 +1,7 @@
 import {
   ArrowSquareOutIcon,
+  CheckCircleIcon,
+  DownloadSimpleIcon,
   HeartIcon,
   ListPlusIcon,
   PlayIcon,
@@ -14,9 +16,10 @@ import { createPortal } from "react-dom";
 import { MD, useMediaQuery } from "../hooks/useMediaQuery";
 import { useT } from "../i18n";
 import { cn } from "../lib/format";
+import { drop, keep, keptIds, offlineSupported } from "../lib/offline";
 import { usePlayer } from "../player/player";
 import { useLibrary } from "../stores/library";
-import { useUi } from "../stores/ui";
+import { toast, useUi } from "../stores/ui";
 import { Artwork } from "./Artwork";
 
 function Item({ icon, children, onClick, danger }: { icon: ReactNode; children: ReactNode; onClick: () => void; danger?: boolean }) {
@@ -46,6 +49,41 @@ export function TrackMenu() {
   const box = useRef<HTMLDivElement>(null);
   const t = useT();
   const [pos, setPos] = useState({ left: 0, top: 0 });
+  const [kept, setKept] = useState(false);
+
+  // Whether this track is already stored for offline play — checked each time the menu opens.
+  useEffect(() => {
+    let live = true;
+    if (!menu || !offlineSupported()) {
+      setKept(false);
+      return;
+    }
+    void keptIds().then((ids) => {
+      if (live) setKept(ids.has(menu.track.id));
+    });
+    return () => {
+      live = false;
+    };
+  }, [menu]);
+
+  /** Keeps or releases the menu's track. The menu stays open, so the label flips in place. */
+  const toggleOffline = async () => {
+    if (!menu) return;
+    const { id, title } = menu.track;
+    try {
+      if (kept) {
+        await drop(id);
+        setKept(false);
+        toast(t.trackMenu.offlineRemoved(title));
+      } else {
+        await keep(id);
+        setKept(true);
+        toast(t.trackMenu.offlineKept(title));
+      }
+    } catch {
+      toast(t.trackMenu.offlineFailed, "error");
+    }
+  };
 
   useLayoutEffect(() => {
     if (!menu || !isMd || !box.current) return;
@@ -96,6 +134,14 @@ export function TrackMenu() {
       <Item icon={<PlaylistIcon size={18} />} onClick={() => openAddToPlaylist([menu.track])}>
         {t.trackMenu.addToPlaylist}
       </Item>
+      {offlineSupported() && (
+        <Item
+          icon={kept ? <CheckCircleIcon size={18} weight="fill" /> : <DownloadSimpleIcon size={18} />}
+          onClick={() => void toggleOffline()}
+        >
+          {kept ? t.trackMenu.offlineRemove : t.trackMenu.offlineKeep}
+        </Item>
+      )}
       {menu.playlistId && (
         <Item
           danger

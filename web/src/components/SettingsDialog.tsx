@@ -7,12 +7,13 @@ import {
   TranslateIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { LANGUAGES, useI18n, useT, type Lang } from "../i18n";
 import type { Channel } from "../lib/api";
 import { cn } from "../lib/format";
+import { formatBytes, usage as offlineUsage } from "../lib/offline";
 import { useSystem } from "../stores/system";
-import { useUi } from "../stores/ui";
+import { toast, useUi } from "../stores/ui";
 import { BackupSection } from "./BackupSection";
 import { Modal } from "./Modal";
 
@@ -70,6 +71,80 @@ function Dependency({ name, role, path, fix }: { name: string; role: string; pat
         </span>
       </span>
     </li>
+  );
+}
+
+/** What this device holds for offline play, and whether the browser promises to keep it. */
+function StorageSection() {
+  const t = useT();
+  const open = useUi((s) => s.settingsOpen);
+  const [data, setData] = useState<{
+    offline: { bytes: number; count: number };
+    quota?: { usage: number; quota: number };
+    persisted?: boolean;
+  } | null>(null);
+
+  const refresh = useCallback(async () => {
+    const offline = await offlineUsage();
+    const quota = navigator.storage?.estimate
+      ? await navigator.storage.estimate().then((e) => ({ usage: e.usage ?? 0, quota: e.quota ?? 0 }))
+      : undefined;
+    const persisted = navigator.storage?.persisted ? await navigator.storage.persisted() : undefined;
+    setData({ offline, quota, persisted });
+  }, []);
+
+  useEffect(() => {
+    if (open) void refresh();
+  }, [open, refresh]);
+
+  const canPersist = typeof navigator.storage?.persist === "function";
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="flex items-center gap-1.5 text-xs font-medium text-fg-3">
+        <DownloadSimpleIcon size={14} /> {t.settings.storage}
+      </h3>
+      <div className="flex flex-col gap-2 rounded-[16px] bg-surface-1 p-4 ring-1 ring-line">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-sm font-medium">{t.settings.offlineAudio}</span>
+          <span className="font-mono text-[13px] text-fg-2 tabular-nums">
+            {!data
+              ? t.settings.checking
+              : data.offline.count
+                ? `${t.common.tracks(data.offline.count)} · ${formatBytes(data.offline.bytes)}`
+                : t.settings.offlineNone}
+          </span>
+        </div>
+        {!!data?.quota?.quota && (
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-sm font-medium">{t.settings.storageUsed}</span>
+            <span className="font-mono text-[13px] text-fg-2 tabular-nums">
+              {formatBytes(data.quota.usage)} / {formatBytes(data.quota.quota)}
+            </span>
+          </div>
+        )}
+        <p className="text-xs text-fg-3">{t.settings.storageBody}</p>
+        {canPersist &&
+          (data?.persisted ? (
+            <p className="flex items-center gap-1.5 text-xs text-accent-text">
+              <CheckCircleIcon size={14} weight="fill" /> {t.settings.storagePersisted}
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                void navigator.storage.persist().then((granted) => {
+                  if (!granted) toast(t.settings.storagePersistRefused);
+                  void refresh();
+                })
+              }
+              className="h-9 self-start rounded-full bg-surface-3 px-4 text-[13px] font-medium transition-colors hover:bg-surface-4"
+            >
+              {t.settings.storagePersist}
+            </button>
+          ))}
+      </div>
+    </section>
   );
 }
 
@@ -149,6 +224,8 @@ export function SettingsDialog() {
             options={LANGUAGES.map(({ id, name }): [Lang, ReactNode] => [id, <span lang={id}>{name}</span>])}
           />
         </section>
+
+        <StorageSection />
 
         <BackupSection />
 

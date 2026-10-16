@@ -208,6 +208,11 @@ export const pt: Messages = {
   },
 
   trackMenu: {
+    offlineKeep: "Guardar para ouvir offline",
+    offlineRemove: "Remover cópia offline",
+    offlineKept: (title) => `${title} guardada para ouvir offline`,
+    offlineRemoved: (title) => `Cópia offline de ${title} removida`,
+    offlineFailed: "Não foi possível salvar para ouvir offline",
     actionsFor: (title) => `Ações para ${title}`,
     playNow: "Tocar agora",
     playNext: "Tocar a seguir",
@@ -306,6 +311,14 @@ export const pt: Messages = {
 
   settings: {
     title: "Ajustes",
+    storage: "Armazenamento",
+    offlineAudio: "Áudio offline",
+    offlineNone: "Nada guardado",
+    storageUsed: "Usado por este app",
+    storageBody: "As faixas guardadas tocam sem conexão. O navegador pode apagá-las se faltar espaço.",
+    storagePersist: "Pedir para mantê-las",
+    storagePersistRefused: "O navegador não reservou o espaço — as faixas guardadas ainda podem ser apagadas se faltar espaço.",
+    storagePersisted: "O armazenamento do navegador é persistente",
     appearance: "Aparência",
     theme: "Tema",
     dark: "Escuro",

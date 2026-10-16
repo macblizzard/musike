@@ -214,6 +214,11 @@ export const en = {
   },
 
   trackMenu: {
+    offlineKeep: "Keep for offline play",
+    offlineRemove: "Remove offline copy",
+    offlineKept: (title: string) => `${title} kept for offline play`,
+    offlineRemoved: (title: string) => `Offline copy of ${title} removed`,
+    offlineFailed: "Could not save it for offline play",
     actionsFor: (title: string) => `Actions for ${title}`,
     playNow: "Play now",
     playNext: "Play next",
@@ -312,6 +317,14 @@ export const en = {
 
   settings: {
     title: "Settings",
+    storage: "Storage",
+    offlineAudio: "Offline audio",
+    offlineNone: "None kept",
+    storageUsed: "Used by this app",
+    storageBody: "Kept tracks play without a connection. The browser may clear them if space runs short.",
+    storagePersist: "Ask to keep them",
+    storagePersistRefused: "The browser wouldn't reserve the space — kept tracks can still be cleared if it runs short.",
+    storagePersisted: "Browser storage is persistent",
     appearance: "Appearance",
     theme: "Theme",
     dark: "Dark",

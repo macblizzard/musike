@@ -43,6 +43,8 @@ cannot silently drop them. Re-check them after any upstream update:
 | `web/src/lib/offline.ts` | offline store — collected audio in Cache Storage, keyed by stream URL |
 | `web/src/components/OfflineButton.tsx` | keep/release a whole collection for offline play |
 | `web/src/views/Collection.tsx` | the offline button on Playlists, Favorites and History |
+| `web/src/components/TrackMenu.tsx` | per-track keep/release entry in the track menu |
+| `web/src/components/SettingsDialog.tsx` | storage readout (offline audio, quota, persistence) |
 
 ## Audio path: progressive remux (do not "simplify" this away)
 
