@@ -9,9 +9,10 @@ import {
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from "motion/react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "../i18n";
 import { cn } from "../lib/format";
 import type { Track } from "../lib/types";
-import { selectCurrent, usePlayer } from "../player/player";
+import { selectCurrent, usePlayer, useStatusText } from "../player/player";
 import { useUi, type PanelTab } from "../stores/ui";
 import { Artwork } from "./Artwork";
 import { FavoriteButton, ModeSwitch, Scrubber, Transport } from "./Controls";
@@ -21,11 +22,12 @@ import { SLOT, VideoSlot } from "./Video";
 
 /** Artwork or the live video, with a soft ambient glow from the cover behind it. */
 function Stage({ track, slot, className }: { track: Track; slot: number; className?: string }) {
+  const t = useT();
   const showsVideo = usePlayer((s) => s.mediaKind === "video");
   const aspect = usePlayer((s) => s.videoAspect);
   // In Video mode on a song: say we're looking for its clip, or that it has none.
   const note = usePlayer((s) =>
-    s.preferVideo ? (s.videoNote ?? (s.statusText === "Procurando o clipe" ? s.statusText : null)) : null,
+    s.preferVideo ? (s.videoNote ?? (s.statusText === "findingClip" ? s.statusText : null)) : null,
   );
   if (showsVideo) {
     const portrait = aspect < 1;
@@ -51,18 +53,18 @@ function Stage({ track, slot, className }: { track: Track; slot: number; classNa
       <Artwork
         src={track.art}
         fallback={track.thumb}
-        alt={`Capa de ${track.title}`}
+        alt={t.nowPlaying.coverOf(track.title)}
         iconSize={48}
         className="relative size-full rounded-[18px] shadow-[0_24px_60px_rgb(0_0_0/0.45)]"
       />
       {note && (
         <span className="absolute inset-x-3 bottom-3 flex items-center justify-center gap-2 rounded-full bg-black/65 px-3 py-2 text-center text-[13px] font-medium text-white backdrop-blur-md">
-          {note === "Procurando o clipe" ? (
+          {note === "findingClip" ? (
             <MagnifyingGlassIcon size={16} className="shrink-0" />
           ) : (
             <VideoCameraSlashIcon size={16} className="shrink-0" />
           )}{" "}
-          {note}
+          {note === "findingClip" ? t.player.status.findingClip : t.player.noClip}
         </span>
       )}
     </div>
@@ -70,7 +72,7 @@ function Stage({ track, slot, className }: { track: Track; slot: number; classNa
 }
 
 function TrackHeading({ track, large = false }: { track: Track; large?: boolean }) {
-  const statusText = usePlayer((s) => s.statusText);
+  const statusText = useStatusText();
   const status = usePlayer((s) => s.status);
   return (
     <div className="flex items-center gap-3">
@@ -90,10 +92,11 @@ function PanelBody({ tab, slot }: { tab: PanelTab; slot: number }) {
   const startRadio = usePlayer((s) => s.startRadio);
   const queue = usePlayer((s) => s.queue);
   const index = usePlayer((s) => s.index);
+  const t = useT();
 
   if (tab === "queue") return <QueueList />;
   if (!track) {
-    return <p className="px-2 py-16 text-center text-sm text-fg-2">Toque algo para ver aqui.</p>;
+    return <p className="px-2 py-16 text-center text-sm text-fg-2">{t.nowPlaying.playSomething}</p>;
   }
   const nextUp = queue[index + 1];
   return (
@@ -106,11 +109,11 @@ function PanelBody({ tab, slot }: { tab: PanelTab; slot: number }) {
         onClick={() => void startRadio(track)}
         className="flex h-11 items-center justify-center gap-2 rounded-full bg-surface-1 text-sm font-medium ring-1 ring-line transition-colors hover:bg-surface-3 active:scale-[0.98]"
       >
-        <RadioIcon size={18} /> Iniciar rádio desta faixa
+        <RadioIcon size={18} /> {t.nowPlaying.startRadio}
       </button>
       {nextUp && (
         <div className="rounded-[14px] bg-surface-1 p-3 ring-1 ring-line">
-          <p className="pb-2 text-xs font-medium text-fg-3">A seguir</p>
+          <p className="pb-2 text-xs font-medium text-fg-3">{t.nowPlaying.upNext}</p>
           <div className="flex items-center gap-3">
             <Artwork src={nextUp.thumb} className="size-10 rounded-[8px]" />
             <div className="min-w-0">
@@ -125,12 +128,13 @@ function PanelBody({ tab, slot }: { tab: PanelTab; slot: number }) {
 }
 
 function PanelTabs({ tab, onTab }: { tab: PanelTab; onTab: (t: PanelTab) => void }) {
+  const t = useT();
   return (
     <div role="tablist" className="flex gap-1">
       {(
         [
-          ["playing", "Tocando"],
-          ["queue", "Fila"],
+          ["playing", t.nowPlaying.tabPlaying],
+          ["queue", t.nowPlaying.tabQueue],
         ] as const
       ).map(([id, label]) => (
         <button
@@ -156,12 +160,13 @@ export function SidePanel() {
   const tab = useUi((s) => s.panelTab);
   const openPanel = useUi((s) => s.openPanel);
   const togglePanel = useUi((s) => s.togglePanel);
+  const t = useT();
   return (
-    <aside className="island hidden w-[360px] shrink-0 xl:flex" aria-label="Tocando agora e fila">
+    <aside className="island hidden w-[360px] shrink-0 xl:flex" aria-label={t.nowPlaying.panel}>
       <div className="island-core flex w-full flex-col overflow-hidden">
         <div className="flex h-16 items-center justify-between px-3">
           <PanelTabs tab={tab} onTab={openPanel} />
-          <IconButton label="Fechar painel" size="sm" onClick={() => togglePanel(tab)}>
+          <IconButton label={t.nowPlaying.closePanel} size="sm" onClick={() => togglePanel(tab)}>
             <XIcon size={18} />
           </IconButton>
         </div>
@@ -180,6 +185,7 @@ export function PanelDrawer() {
   const openPanel = useUi((s) => s.openPanel);
   const close = useUi((s) => s.closePanel);
   const reduce = useReducedMotion();
+  const t = useT();
 
   return createPortal(
     <AnimatePresence>
@@ -187,7 +193,7 @@ export function PanelDrawer() {
         <div className="fixed inset-0 z-40 hidden md:block xl:hidden">
           <motion.div className="absolute inset-0 bg-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} />
           <motion.aside
-            aria-label="Tocando agora e fila"
+            aria-label={t.nowPlaying.panel}
             initial={reduce ? { opacity: 0 } : { x: "105%" }}
             animate={{ x: 0, opacity: 1 }}
             exit={reduce ? { opacity: 0 } : { x: "105%" }}
@@ -197,7 +203,7 @@ export function PanelDrawer() {
             <div className="island-core flex w-full flex-col overflow-hidden">
               <div className="flex h-16 items-center justify-between px-3">
                 <PanelTabs tab={tab} onTab={openPanel} />
-                <IconButton label="Fechar" size="sm" onClick={close}>
+                <IconButton label={t.common.close} size="sm" onClick={close}>
                   <XIcon size={18} />
                 </IconButton>
               </div>
@@ -219,6 +225,7 @@ export function NowPlayingSheet({ open, onClose }: { open: boolean; onClose: () 
   const reduce = useReducedMotion();
   const drag = useDragControls();
   const [view, setView] = useState<"player" | "queue">("player");
+  const t = useT();
 
   return createPortal(
     <AnimatePresence onExitComplete={() => setView("player")}>
@@ -226,7 +233,7 @@ export function NowPlayingSheet({ open, onClose }: { open: boolean; onClose: () 
         <motion.div
           role="dialog"
           aria-modal="true"
-          aria-label="Tocando agora"
+          aria-label={t.nowPlaying.title}
           initial={reduce ? { opacity: 0 } : { y: "100%" }}
           animate={{ y: 0, opacity: 1 }}
           exit={reduce ? { opacity: 0 } : { y: "100%" }}
@@ -251,12 +258,12 @@ export function NowPlayingSheet({ open, onClose }: { open: boolean; onClose: () 
 
           <div className="overlay-top relative flex flex-1 flex-col px-5">
             <div className="flex h-14 touch-none items-center justify-between" onPointerDown={(e) => drag.start(e)}>
-              <IconButton label="Fechar" onClick={onClose} className="-ml-2 text-fg">
+              <IconButton label={t.common.close} onClick={onClose} className="-ml-2 text-fg">
                 <CaretDownIcon size={24} />
               </IconButton>
               <div className="mx-auto mt-0 h-1 w-10 rounded-full bg-fg-3/50" />
               <IconButton
-                label={view === "queue" ? "Voltar ao player" : "Ver fila"}
+                label={view === "queue" ? t.nowPlaying.backToPlayer : t.nowPlaying.showQueue}
                 active={view === "queue"}
                 onClick={() => setView(view === "queue" ? "player" : "queue")}
                 className="-mr-2"

@@ -1,6 +1,7 @@
 import { CheckIcon, HeartIcon, PlayIcon, PlaylistIcon, VideoCameraIcon } from "@phosphor-icons/react";
 import { useState, type ReactNode } from "react";
-import { cn, formatTime, plural } from "../lib/format";
+import { useT } from "../i18n";
+import { cn, formatTime } from "../lib/format";
 import type { Track } from "../lib/types";
 import { selectCurrent, usePlayer } from "../player/player";
 import { useLibrary } from "../stores/library";
@@ -24,12 +25,14 @@ export function Check({ on }: { on: boolean }) {
 function Action({
   icon,
   label,
+  phoneLabel,
   onClick,
   disabled,
   primary,
 }: {
   icon: ReactNode;
   label: string;
+  phoneLabel?: string;
   onClick: () => void;
   disabled?: boolean;
   primary?: boolean;
@@ -47,8 +50,8 @@ function Action({
       )}
     >
       {icon}
-      {/* Phones keep only "Tocar"; the icons are familiar enough for the rest. */}
-      {primary ? <Short phone="Tocar" wide={label} /> : <span className="hidden sm:inline">{label}</span>}
+      {/* Phones keep only "Play"; the icons are familiar enough for the rest. */}
+      {primary ? <Short phone={phoneLabel ?? label} wide={label} /> : <span className="hidden sm:inline">{label}</span>}
     </button>
   );
 }
@@ -63,14 +66,15 @@ export function Short({ phone, wide }: { phone: ReactNode; wide: ReactNode }) {
   );
 }
 
-/** "3 de 150 músicas", or "3 de 150" on phones. */
+/** "3 of 150 songs", or "3 of 150" on phones. */
 export function SelectedCount({ n, total }: { n: number; total: number }) {
-  return <Short phone={`${n} de ${total}`} wide={`${n} de ${plural(total, "música", "músicas")}`} />;
+  const t = useT();
+  return <Short phone={t.selection.countShort(n, total)} wide={t.selection.count(n, total)} />;
 }
 
 /**
  * Sticky bar under the page header: select all, then play, favorite or add the selection to a playlist.
- * With nothing selected, "Tocar tudo" plays every track.
+ * With nothing selected, "Play all" plays every track.
  */
 export function SelectionBar({
   chosen,
@@ -91,6 +95,7 @@ export function SelectionBar({
   const addFavorites = useLibrary((s) => s.addFavorites);
   const openAddToPlaylist = useUi((s) => s.openAddToPlaylist);
   const toPlay = chosen.length ? chosen : all;
+  const t = useT();
 
   return (
     <div
@@ -115,12 +120,13 @@ export function SelectionBar({
         <Action
           primary
           icon={<PlayIcon size={16} weight="fill" />}
-          label={chosen.length ? "Tocar" : "Tocar tudo"}
+          label={chosen.length ? t.common.play : t.common.playAll}
+          phoneLabel={t.common.play}
           disabled={!toPlay.length}
           onClick={() => playList(toPlay, 0)}
         />
-        <Action icon={<HeartIcon size={16} />} label="Favoritar" disabled={!chosen.length} onClick={() => void addFavorites(chosen)} />
-        <Action icon={<PlaylistIcon size={16} />} label="Playlist" disabled={!chosen.length} onClick={() => openAddToPlaylist(chosen)} />
+        <Action icon={<HeartIcon size={16} />} label={t.common.favorite} disabled={!chosen.length} onClick={() => void addFavorites(chosen)} />
+        <Action icon={<PlaylistIcon size={16} />} label={t.common.playlist} disabled={!chosen.length} onClick={() => openAddToPlaylist(chosen)} />
       </div>
     </div>
   );
@@ -150,7 +156,8 @@ export function SelectableRow({
 }) {
   const isCurrent = usePlayer((s) => selectCurrent(s)?.id === track.id);
   const isPlaying = usePlayer((s) => s.status === "playing" || s.status === "loading");
-  const isFavorite = useLibrary((s) => s.favorites.some((t) => t.id === track.id));
+  const isFavorite = useLibrary((s) => s.favorites.some((f) => f.id === track.id));
+  const t = useT();
 
   return (
     <div className="group flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-surface-2 md:px-3">
@@ -158,7 +165,7 @@ export function SelectableRow({
         type="button"
         role="checkbox"
         aria-checked={selected}
-        aria-label={`Selecionar ${track.title}`}
+        aria-label={t.selection.select(track.title)}
         onClick={onToggle}
         className="-m-2 p-2"
       >
@@ -169,7 +176,7 @@ export function SelectableRow({
         <span className="hidden w-6 shrink-0 text-center font-mono text-[13px] text-fg-3 tabular-nums md:block">{position}</span>
       )}
 
-      <button type="button" onClick={onPlay} aria-label={`Tocar ${track.title}`} className="group/art relative shrink-0">
+      <button type="button" onClick={onPlay} aria-label={t.common.playX(track.title)} className="group/art relative shrink-0">
         <Artwork src={track.thumb} className="size-11 rounded-[10px]" />
         <span
           className={cn(
@@ -184,15 +191,15 @@ export function SelectableRow({
       <button type="button" onClick={onToggle} className={cn("min-w-0 flex-1 text-left", !selected && "opacity-60")}>
         <span className={cn("block truncate text-[15px] leading-tight font-medium", isCurrent && "text-accent-text")}>{track.title}</span>
         <span className="mt-0.5 flex items-center gap-1.5 text-[13px] text-fg-2">
-          {track.kind === "video" && <VideoCameraIcon size={13} className="shrink-0 text-fg-3" aria-label="Vídeo" />}
+          {track.kind === "video" && <VideoCameraIcon size={13} className="shrink-0 text-fg-3" aria-label={t.common.video} />}
           <span className="truncate">
-            {track.artist || "YouTube"}
+            {track.artist || t.common.youtube}
             {note}
           </span>
         </span>
       </button>
 
-      {isFavorite && <HeartIcon size={15} weight="fill" className="shrink-0 text-accent-text" aria-label="Nas Favoritas" />}
+      {isFavorite && <HeartIcon size={15} weight="fill" className="shrink-0 text-accent-text" aria-label={t.common.inFavorites} />}
 
       <span className="hidden w-11 shrink-0 text-right font-mono text-[13px] text-fg-3 tabular-nums md:block">
         {track.duration ? formatTime(track.duration) : ""}
@@ -209,6 +216,7 @@ export function SelectableTrackList({ tracks, numbered }: { tracks: Track[]; num
   const playList = usePlayer((s) => s.playList);
   const chosen = tracks.filter((t) => selected.has(t.id));
   const allSelected = tracks.length > 0 && chosen.length === tracks.length;
+  const t = useT();
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -224,7 +232,7 @@ export function SelectableTrackList({ tracks, numbered }: { tracks: Track[]; num
         all={tracks}
         allSelected={allSelected}
         onToggleAll={() => setSelected(allSelected ? new Set() : new Set(tracks.map((t) => t.id)))}
-        label={chosen.length ? <SelectedCount n={chosen.length} total={tracks.length} /> : <Short phone="Todas" wide="Selecionar todas" />}
+        label={chosen.length ? <SelectedCount n={chosen.length} total={tracks.length} /> : <Short phone={t.selection.all} wide={t.selection.selectAll} />}
       />
       <ul className="mt-2 flex flex-col px-2 md:px-3">
         {tracks.map((t, i) => (

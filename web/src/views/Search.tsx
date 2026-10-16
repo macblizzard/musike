@@ -17,7 +17,9 @@ import { EmptyState, PageHeader } from "../components/Page";
 import { TrackList, TrackListSkeleton } from "../components/TrackList";
 import { MD, useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
+import { useT } from "../i18n";
 import { cn } from "../lib/format";
+import { paths } from "../lib/routes";
 import type { Track } from "../lib/types";
 import { usePlayer } from "../player/player";
 import { parseList } from "./BatchSearch";
@@ -60,7 +62,8 @@ let genresOpenMemo = false;
 export default function Search() {
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
-  const kind: Kind = params.get("tipo") === "videos" ? "video" : "song";
+  const kind: Kind = params.get("type") === "videos" ? "video" : "song";
+  const t = useT();
   const [text, setText] = useState(q);
   const [results, setResults] = useState<Track[] | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "ok" | "error">("idle");
@@ -86,18 +89,18 @@ export default function Search() {
   const setQuery = (next: string, nextKind = kind) => {
     const p = new URLSearchParams();
     if (next.trim()) p.set("q", next.trim());
-    if (nextKind === "video") p.set("tipo", "videos");
+    if (nextKind === "video") p.set("type", "videos");
     setParams(p, { replace: true });
   };
 
   // Keep the box in sync when navigating back to an earlier query (without eating a trailing space while typing).
-  useEffect(() => setText((t) => (t.trim() === q ? t : q)), [q]);
+  useEffect(() => setText((current) => (current.trim() === q ? current : q)), [q]);
 
   // Search as you type, debounced.
   useEffect(() => {
     if (linkId || text.trim() === q) return;
-    const t = setTimeout(() => setQuery(text), 380);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setQuery(text), 380);
+    return () => clearTimeout(timer);
   }, [text]);
 
   useEffect(() => {
@@ -129,14 +132,14 @@ export default function Search() {
     const term = text.trim();
     if (!term || linkId) return setSuggestions([]);
     const ctrl = new AbortController();
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       api
         .suggest(term, ctrl.signal)
         .then((s) => setSuggestions(s.filter((x) => x.toLowerCase() !== term.toLowerCase()).slice(0, 6)))
         .catch(() => {});
     }, 140);
     return () => {
-      clearTimeout(t);
+      clearTimeout(timer);
       ctrl.abort();
     };
   }, [text, linkId]);
@@ -151,7 +154,7 @@ export default function Search() {
         setLinkTrack({
           id: r.id,
           title: r.title,
-          artist: "Link do YouTube",
+          artist: t.search.youtubeLink,
           duration: r.duration,
           thumb: `https://i.ytimg.com/vi/${r.id}/mqdefault.jpg`,
           art: `https://i.ytimg.com/vi/${r.id}/hq720.jpg`,
@@ -183,7 +186,7 @@ export default function Search() {
 
   return (
     <div className="pb-8">
-      <PageHeader title="Buscar" />
+      <PageHeader title={t.search.title} />
 
       <div className="flex flex-col gap-3 px-4 pt-1 md:px-6">
         <form
@@ -196,7 +199,7 @@ export default function Search() {
           className="relative"
         >
           <label htmlFor="search-input" className="sr-only">
-            Buscar músicas, artistas, vídeos ou colar um link do YouTube
+            {t.search.inputLabel}
           </label>
           <MagnifyingGlassIcon size={20} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-fg-2" />
           <input
@@ -208,7 +211,7 @@ export default function Search() {
             autoComplete="off"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Músicas, artistas ou link do YouTube"
+            placeholder={t.search.placeholder}
             className="h-12 w-full rounded-full border border-line-strong bg-surface-2 pr-24 pl-12 text-[16px] placeholder:text-fg-3 focus:border-accent focus:bg-surface-1 focus:outline-none md:h-13 [&::-webkit-search-cancel-button]:hidden"
           />
           <div className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-2">
@@ -221,7 +224,7 @@ export default function Search() {
                   setQuery("");
                   input.current?.focus();
                 }}
-                aria-label="Limpar busca"
+                aria-label={t.search.clear}
                 className="grid size-9 place-items-center rounded-full text-fg-2 hover:bg-surface-3 hover:text-fg"
               >
                 <XIcon size={18} />
@@ -232,13 +235,13 @@ export default function Search() {
 
         {listTerms.length > 1 && (
           <Link
-            to="/buscar/lista"
+            to={paths.searchList}
             state={{ text }}
             className="flex items-center gap-3 rounded-[16px] bg-accent-soft px-4 py-3 text-sm ring-1 ring-line transition-colors hover:bg-surface-3"
           >
             <ListBulletsIcon size={20} className="shrink-0 text-accent-text" />
             <span className="min-w-0 flex-1">
-              <span className="font-medium">Buscar {listTerms.length} músicas separadamente</span>
+              <span className="font-medium">{t.search.searchSeparately(listTerms.length)}</span>
               <span className="block truncate text-fg-2">{listTerms.join(" · ")}</span>
             </span>
             <ArrowRightIcon size={18} className="shrink-0 text-fg-2" />
@@ -265,9 +268,9 @@ export default function Search() {
 
         {!linkId && (
           <div className="flex flex-wrap items-center gap-2">
-            <div role="tablist" aria-label="Tipo de resultado" className="flex gap-2">
-              {tab("song", "Músicas")}
-              {tab("video", "Vídeos")}
+            <div role="tablist" aria-label={t.search.resultType} className="flex gap-2">
+              {tab("song", t.search.songs)}
+              {tab("video", t.search.videos)}
             </div>
             <span className="flex-1" />
             <div className="flex items-center gap-1">
@@ -281,15 +284,15 @@ export default function Search() {
                   genresOpen ? "bg-accent-soft text-accent-text" : "text-fg-2 hover:bg-surface-3 hover:text-fg",
                 )}
               >
-                <FunnelSimpleIcon size={16} /> Gêneros
+                <FunnelSimpleIcon size={16} /> {t.search.genres}
               </button>
               <Link
-                to="/buscar/lista"
-                aria-label="Buscar lista"
-                title="Buscar lista"
+                to={paths.searchList}
+                aria-label={t.search.list}
+                title={t.search.list}
                 className="flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-fg-2 hover:bg-surface-3 hover:text-fg"
               >
-                <ListBulletsIcon size={16} /> <span className="hidden sm:inline">Buscar lista</span>
+                <ListBulletsIcon size={16} /> <span className="hidden sm:inline">{t.search.list}</span>
               </Link>
             </div>
           </div>
@@ -311,7 +314,7 @@ export default function Search() {
                 <Artwork src={linkTrack.thumb} className="aspect-video w-28 rounded-[10px] md:w-36" />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5 text-xs font-medium text-accent-text">
-                    <LinkIcon size={14} /> Link do YouTube
+                    <LinkIcon size={14} /> {t.search.youtubeLink}
                   </span>
                   <span className="mt-1 line-clamp-2 font-medium">{linkTrack.title}</span>
                 </span>
@@ -321,7 +324,7 @@ export default function Search() {
               </button>
             )}
             {linkTrack === "error" && (
-              <p className="px-1 py-6 text-sm text-fg-2">Não foi possível abrir esse link. Confira se o vídeo é público.</p>
+              <p className="px-1 py-6 text-sm text-fg-2">{t.search.linkError}</p>
             )}
           </div>
         )}
@@ -331,7 +334,7 @@ export default function Search() {
         {!linkId && state === "error" && (
           <EmptyState
             icon={<WarningCircleIcon size={28} />}
-            title="A busca falhou"
+            title={t.search.failed}
             body={error}
             action={
               <button
@@ -339,7 +342,7 @@ export default function Search() {
                 onClick={() => setRetry((n) => n + 1)}
                 className="mt-2 h-11 rounded-full bg-surface-3 px-6 text-sm font-medium hover:bg-surface-4"
               >
-                Tentar de novo
+                {t.common.retry}
               </button>
             }
           />
@@ -348,8 +351,8 @@ export default function Search() {
         {!linkId && state === "ok" && results && results.length === 0 && (
           <EmptyState
             icon={<MagnifyingGlassIcon size={28} />}
-            title="Nada encontrado"
-            body={`Nenhum resultado para "${q}". Tente outro termo ou a aba ${kind === "song" ? "Vídeos" : "Músicas"}.`}
+            title={t.search.nothingFound}
+            body={t.search.nothingFoundBody(q, kind === "song" ? t.search.videos : t.search.songs)}
           />
         )}
 
@@ -360,7 +363,7 @@ export default function Search() {
             {recent.length > 0 ? (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold tracking-tight">Buscas recentes</h2>
+                  <h2 className="text-lg font-semibold tracking-tight">{t.search.recent}</h2>
                   <button
                     type="button"
                     onClick={() => {
@@ -369,7 +372,7 @@ export default function Search() {
                     }}
                     className="text-sm font-medium text-fg-2 hover:text-fg"
                   >
-                    Limpar
+                    {t.search.clearRecent}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -391,8 +394,8 @@ export default function Search() {
             ) : (
               <EmptyState
                 icon={<MagnifyingGlassIcon size={28} />}
-                title="O que vai tocar hoje?"
-                body="Busque por música, artista ou álbum. Para clipes e ao vivo, use a aba Vídeos. Também dá para colar um link do YouTube."
+                title={t.search.idleTitle}
+                body={t.search.idleBody}
               />
             )}
           </div>

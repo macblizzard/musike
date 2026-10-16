@@ -4,7 +4,8 @@ import { Link, useNavigate } from "react-router";
 import { Cover, type CoverKind } from "../components/Cover";
 import { NamePlaylistDialog } from "../components/Dialogs";
 import { PageHeader } from "../components/Page";
-import { plural } from "../lib/format";
+import { useT } from "../i18n";
+import { paths } from "../lib/routes";
 import type { Track } from "../lib/types";
 import { IconButton } from "../components/IconButton";
 import { useLibrary } from "../stores/library";
@@ -37,14 +38,15 @@ export default function Library() {
   const [creating, setCreating] = useState(false);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const navigate = useNavigate();
+  const t = useT();
 
   return (
     <div className="pb-8">
       <PageHeader
-        title="Biblioteca"
+        title={t.nav.library}
         actions={
           <>
-          <IconButton label="Backup da biblioteca (exportar ou importar)" onClick={() => setSettingsOpen(true)}>
+          <IconButton label={t.library.backup} onClick={() => setSettingsOpen(true)}>
             <DatabaseIcon size={20} />
           </IconButton>
           <button
@@ -52,43 +54,43 @@ export default function Library() {
             onClick={() => setCreating(true)}
             className="flex h-10 items-center gap-1.5 rounded-full bg-accent pr-4 pl-3 text-sm font-semibold text-accent-ink transition-transform active:scale-[0.97]"
           >
-            <PlusIcon size={18} weight="bold" /> <span className="hidden sm:inline">Nova playlist</span>
-            <span className="sm:hidden">Nova</span>
+            <PlusIcon size={18} weight="bold" /> <span className="hidden sm:inline">{t.nav.newPlaylist}</span>
+            <span className="sm:hidden">{t.library.newShort}</span>
           </button>
           </>
         }
       />
 
       <ul className="grid grid-cols-1 gap-1 px-2 pt-2 md:grid-cols-3 md:gap-2 md:px-4 lg:grid-cols-4 2xl:grid-cols-6">
-        <Entry to="/favoritas" name="Favoritas" kind="favorites" tracks={favorites} sub={plural(favorites.length, "faixa", "faixas")} />
-        <Entry to="/historico" name="Tocadas recentemente" kind="history" tracks={history} sub={plural(history.length, "faixa", "faixas")} />
+        <Entry to={paths.favorites} name={t.nav.favorites} kind="favorites" tracks={favorites} sub={t.common.tracks(favorites.length)} />
+        <Entry to={paths.history} name={t.nav.recentlyPlayed} kind="history" tracks={history} sub={t.common.tracks(history.length)} />
         {playlists.map((p) => (
           <Entry
             key={p.id}
-            to={`/playlist/${p.id}`}
+            to={paths.playlist(p.id)}
             name={p.name}
             kind="playlist"
             tracks={p.tracks}
-            sub={`Playlist · ${plural(p.tracks.length, "faixa", "faixas")}`}
+            sub={t.library.playlistSub(p.tracks.length)}
           />
         ))}
       </ul>
 
       {playlists.length === 0 && (
         <p className="px-4 pt-6 text-sm text-fg-2 md:px-6">
-          Você ainda não tem playlists. Crie uma aqui ou use o menu de qualquer faixa para começar uma.
+          {t.library.noPlaylists}
         </p>
       )}
 
       <NamePlaylistDialog
         open={creating}
-        title="Nova playlist"
-        action="Criar"
+        title={t.nav.newPlaylist}
+        action={t.library.create}
         onClose={() => setCreating(false)}
         onSubmit={async (name) => {
           const p = await createPlaylist(name);
           setCreating(false);
-          if (p) navigate(`/playlist/${p.id}`);
+          if (p) navigate(paths.playlist(p.id));
         }}
       />
     </div>

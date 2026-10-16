@@ -1,3 +1,4 @@
+import { getLang, getT, isLang, useI18n } from "../i18n";
 import { usePlayer } from "../player/player";
 import { useLibrary } from "../stores/library";
 import { useUi } from "../stores/ui";
@@ -16,6 +17,7 @@ export interface Backup {
   library: Library;
   settings?: {
     theme?: "dark" | "light";
+    lang?: string;
     preferVideo?: boolean;
     quality?: "sd" | "hd";
     autoRadio?: boolean;
@@ -34,6 +36,7 @@ export async function createBackup(): Promise<Backup> {
     library: { favorites: library.favorites, playlists: library.playlists, history: library.history },
     settings: {
       theme: useUi.getState().theme,
+      lang: getLang(),
       preferVideo: p.preferVideo,
       quality: p.quality,
       autoRadio: p.autoRadio,
@@ -60,11 +63,11 @@ export async function readBackup(file: File): Promise<Backup> {
   try {
     data = JSON.parse(await file.text()) as Partial<Backup>;
   } catch {
-    throw new Error("Não foi possível ler o arquivo. Ele precisa ser um backup .musike.json.");
+    throw new Error(getT().backup.unreadable);
   }
-  if (data?.format !== "musike-backup" || !data.library) throw new Error("Este arquivo não é um backup do Musike.");
+  if (data?.format !== "musike-backup" || !data.library) throw new Error(getT().backup.notBackup);
   if (typeof data.version !== "number" || data.version > 1) {
-    throw new Error("Backup feito por uma versão mais nova do Musike. Atualize o app para importar.");
+    throw new Error(getT().backup.newer);
   }
   return data as Backup;
 }
@@ -87,6 +90,7 @@ export async function restoreBackup(backup: Backup, mode: "merge" | "replace", a
   if (applySettings && s) {
     const player = usePlayer.getState();
     if (s.theme === "dark" || s.theme === "light") useUi.getState().setTheme(s.theme);
+    if (isLang(s.lang)) useI18n.getState().setLang(s.lang);
     if (typeof s.autoRadio === "boolean") player.setAutoRadio(s.autoRadio);
     if (typeof s.volume === "number") player.setVolume(s.volume);
     if (s.quality === "sd" || s.quality === "hd") player.setQuality(s.quality);

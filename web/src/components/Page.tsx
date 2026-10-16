@@ -1,6 +1,7 @@
 import { ArrowLeftIcon, GearSixIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router";
+import { useT } from "../i18n";
 import { cn } from "../lib/format";
 import { needsAttention, useSystem } from "../stores/system";
 import { useUi } from "../stores/ui";
@@ -22,6 +23,7 @@ export function PageHeader({
 }) {
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const attention = useSystem((s) => needsAttention(s.info));
+  const t = useT();
   return (
     <header
       className={cn(
@@ -37,7 +39,7 @@ export function PageHeader({
         {!title && <span className="flex-1" />}
         {actions}
         <IconButton
-          label={attention ? "Ajustes (atualização do yt-dlp disponível)" : "Ajustes"}
+          label={attention ? t.nav.settingsUpdate : t.nav.settings}
           onClick={() => setSettingsOpen(true)}
           className="-mr-2 md:hidden"
         >
@@ -62,15 +64,16 @@ export function Section({ title, action, children, className }: { title: string;
 }
 
 /** Back in history when there is somewhere to go back to (in the app), else to `fallback`. */
-export function BackButton({ fallback, label = "Voltar" }: { fallback: string; label?: string }) {
+export function BackButton({ fallback, label }: { fallback: string; label?: string }) {
   const navigate = useNavigate();
+  const t = useT();
   return (
     <button
       type="button"
       onClick={() => ((window.history.state as { idx?: number } | null)?.idx ? navigate(-1) : navigate(fallback))}
       className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-fg-2 hover:bg-surface-3 hover:text-fg"
     >
-      <ArrowLeftIcon size={16} /> {label}
+      <ArrowLeftIcon size={16} /> {label ?? t.common.back}
     </button>
   );
 }

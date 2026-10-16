@@ -1,3 +1,4 @@
+import { getLang, getT } from "../i18n";
 import type { ArtistPage, Genre, GenreArtist, GenrePage, Library, Playlist, Track } from "./types";
 
 export type ErrorCode = "tool_missing" | "maybe_outdated" | "bot_check";
@@ -43,16 +44,23 @@ export interface SystemInfo {
   job: SystemJob | null;
 }
 
+/** The server answers errors (and YouTube Music answers names, like genres) in the app's language. */
+const LANG_HEADER = "x-musike-lang";
+
 async function request<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const { json, ...rest } = init ?? {};
   const res = await fetch(path, {
     ...rest,
-    headers: json !== undefined ? { "content-type": "application/json", ...rest.headers } : rest.headers,
+    headers: {
+      [LANG_HEADER]: getLang(),
+      ...(json !== undefined ? { "content-type": "application/json" } : {}),
+      ...(rest.headers as Record<string, string> | undefined),
+    },
     body: json !== undefined ? JSON.stringify(json) : rest.body,
   });
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, body.error ?? `Erro ${res.status}`, body.code);
+  if (!res.ok) throw new ApiError(res.status, body.error ?? getT().player.httpError(res.status), body.code);
   return body as T;
 }
 
@@ -104,12 +112,13 @@ export const streamUrl = (id: string, kind: "audio" | "video", quality: "sd" | "
 
 /** Media elements hide the HTTP error body; fetch it to show the real reason. */
 export async function explainStreamError(url: string): Promise<{ message: string; code?: ErrorCode }> {
+  const t = getT();
   try {
-    const res = await fetch(url, { headers: { Range: "bytes=0-0" } });
-    if (res.ok) return { message: "O navegador não conseguiu reproduzir este formato." };
+    const res = await fetch(url, { headers: { Range: "bytes=0-0", [LANG_HEADER]: getLang() } });
+    if (res.ok) return { message: t.player.browserCantPlay };
     const body = await res.json().catch(() => ({}));
-    return { message: body.error ?? `Erro ${res.status}`, code: body.code };
+    return { message: body.error ?? t.player.httpError(res.status), code: body.code };
   } catch {
-    return { message: "Servidor do Musike inacessível. Ele está rodando?" };
+    return { message: t.player.serverDown };
   }
 }

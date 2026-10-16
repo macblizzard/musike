@@ -1,5 +1,6 @@
 import { ClockIcon, DotsThreeIcon, HeartIcon, VideoCameraIcon } from "@phosphor-icons/react";
 import { memo, type MouseEvent } from "react";
+import { useT } from "../i18n";
 import { cn, formatTime } from "../lib/format";
 import type { Track } from "../lib/types";
 import { selectCurrent, usePlayer } from "../player/player";
@@ -22,6 +23,7 @@ const TrackRow = memo(function TrackRow({ track, position, onPlay, playlistId, s
   const isFavorite = useLibrary((s) => s.favorites.some((t) => t.id === track.id));
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
   const openMenu = useUi((s) => s.openMenu);
+  const t = useT();
 
   const menuAt = (e: MouseEvent) => {
     e.preventDefault();
@@ -44,7 +46,7 @@ const TrackRow = memo(function TrackRow({ track, position, onPlay, playlistId, s
       <button
         type="button"
         onClick={onPlay}
-        aria-label={`Tocar ${track.title}`}
+        aria-label={t.common.playX(track.title)}
         className="absolute inset-0 rounded-xl focus-visible:outline-offset-[-2px]"
       />
 
@@ -66,8 +68,8 @@ const TrackRow = memo(function TrackRow({ track, position, onPlay, playlistId, s
           {track.title}
         </p>
         <p className="mt-0.5 flex items-center gap-1.5 truncate text-[13px] text-fg-2">
-          {track.kind === "video" && <VideoCameraIcon size={13} className="shrink-0 text-fg-3" aria-label="Vídeo" />}
-          <span className="truncate">{track.artist || "YouTube"}</span>
+          {track.kind === "video" && <VideoCameraIcon size={13} className="shrink-0 text-fg-3" aria-label={t.common.video} />}
+          <span className="truncate">{track.artist || t.common.youtube}</span>
         </p>
       </div>
 
@@ -77,8 +79,8 @@ const TrackRow = memo(function TrackRow({ track, position, onPlay, playlistId, s
         <button
           type="button"
           onClick={() => void toggleFavorite(track)}
-          aria-label={isFavorite ? "Remover das Favoritas" : "Adicionar às Favoritas"}
-          title={isFavorite ? "Remover das Favoritas" : "Adicionar às Favoritas"}
+          aria-label={isFavorite ? t.common.removeFromFavorites : t.common.addToFavorites}
+          title={isFavorite ? t.common.removeFromFavorites : t.common.addToFavorites}
           className={cn(
             "grid size-8 place-items-center rounded-full transition-[opacity,transform] active:scale-90",
             isFavorite ? "text-accent-text" : "text-fg-2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-fg",
@@ -94,8 +96,8 @@ const TrackRow = memo(function TrackRow({ track, position, onPlay, playlistId, s
       <button
         type="button"
         onClick={menuAt}
-        aria-label={`Mais opções para ${track.title}`}
-        title="Mais opções"
+        aria-label={t.trackList.moreFor(track.title)}
+        title={t.trackList.more}
         className="relative z-10 grid size-9 place-items-center rounded-full text-fg-2 transition-[opacity,background-color] hover:bg-surface-3 hover:text-fg md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
       >
         <DotsThreeIcon size={22} weight="bold" />
@@ -115,6 +117,7 @@ interface ListProps {
 
 export function TrackList({ tracks, context, playlistId, showAlbum = true, header = true }: ListProps) {
   const playList = usePlayer((s) => s.playList);
+  const t = useT();
   return (
     <div>
       {header && (
@@ -128,10 +131,10 @@ export function TrackList({ tracks, context, playlistId, showAlbum = true, heade
         >
           <span className="text-center font-mono">#</span>
           <span />
-          <span>Título</span>
-          {showAlbum && <span className="hidden lg:block">Álbum</span>}
+          <span>{t.trackList.title}</span>
+          {showAlbum && <span className="hidden lg:block">{t.trackList.album}</span>}
           <span className="flex w-[84px] justify-end pr-0.5">
-            <ClockIcon size={15} aria-label="Duração" />
+            <ClockIcon size={15} aria-label={t.trackList.duration} />
           </span>
           <span className="w-9" />
         </div>
@@ -153,8 +156,9 @@ export function TrackList({ tracks, context, playlistId, showAlbum = true, heade
 }
 
 export function TrackListSkeleton({ rows = 8 }: { rows?: number }) {
+  const t = useT();
   return (
-    <ul aria-label="Carregando" className="flex flex-col gap-1">
+    <ul aria-label={t.common.loading} className="flex flex-col gap-1">
       {Array.from({ length: rows }, (_, i) => (
         <li key={i} className="flex items-center gap-3 px-2 py-1.5 md:px-3">
           <span className="hidden w-7 md:block" />

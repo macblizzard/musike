@@ -7,7 +7,9 @@ import { IconButton, PlayDisc } from "../components/IconButton";
 import { Modal } from "../components/Modal";
 import { EmptyState, PageHeader } from "../components/Page";
 import { TrackList } from "../components/TrackList";
-import { formatTotal, plural, shuffled } from "../lib/format";
+import { useT } from "../i18n";
+import { shuffled } from "../lib/format";
+import { paths } from "../lib/routes";
 import type { Track } from "../lib/types";
 import { usePlayer } from "../player/player";
 import { useLibrary } from "../stores/library";
@@ -28,11 +30,13 @@ export default function Collection({ kind }: Props) {
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const t = useT();
 
   const playlist = kind === "playlist" ? lib.playlists.find((p) => p.id === id) : undefined;
   const tracks: Track[] = kind === "favorites" ? lib.favorites : kind === "history" ? lib.history : playlist?.tracks ?? [];
-  const name = kind === "favorites" ? "Favoritas" : kind === "history" ? "Tocadas recentemente" : playlist?.name ?? "";
-  const label = kind === "playlist" ? "Playlist" : kind === "favorites" ? "Coleção" : "Histórico";
+  const name = kind === "favorites" ? t.nav.favorites : kind === "history" ? t.nav.recentlyPlayed : playlist?.name ?? "";
+  const label =
+    kind === "playlist" ? t.collection.labelPlaylist : kind === "favorites" ? t.collection.labelFavorites : t.collection.labelHistory;
 
   if (kind === "playlist" && !playlist) {
     if (lib.status !== "ready") return <PageHeader />;
@@ -41,11 +45,11 @@ export default function Collection({ kind }: Props) {
         <PageHeader />
         <EmptyState
           icon={<MagnifyingGlassIcon size={28} />}
-          title="Playlist não encontrada"
-          body="Ela pode ter sido excluída."
+          title={t.collection.notFoundTitle}
+          body={t.collection.notFoundBody}
           action={
-            <Link to="/biblioteca" className="mt-2 h-11 rounded-full bg-surface-3 px-6 text-sm leading-[44px] font-medium">
-              Ir para a Biblioteca
+            <Link to={paths.library} className="mt-2 h-11 rounded-full bg-surface-3 px-6 text-sm leading-[44px] font-medium">
+              {t.collection.goToLibrary}
             </Link>
           }
         />
@@ -75,8 +79,8 @@ export default function Collection({ kind }: Props) {
             <span className="hidden text-xs font-medium text-fg-2 md:block">{label}</span>
             <h1 className="max-w-full text-[28px] leading-[1.1] font-bold tracking-tight break-words md:text-5xl lg:text-6xl">{name}</h1>
             <p className="font-mono text-[13px] text-fg-2">
-              {plural(tracks.length, "faixa", "faixas")}
-              {total > 0 && <> · {formatTotal(total)}</>}
+              {t.common.tracks(tracks.length)}
+              {total > 0 && <> · {t.time.total(total)}</>}
             </p>
           </div>
         </div>
@@ -84,7 +88,7 @@ export default function Collection({ kind }: Props) {
 
       <div className="flex items-center gap-2 px-4 pb-4 md:px-6">
         <PlayDisc
-          label={playing ? "Pausar" : `Tocar ${name}`}
+          label={playing ? t.common.pause : t.common.playX(name)}
           px={56}
           disabled={!tracks.length}
           onClick={() => (isThisPlaying ? toggle() : playList(tracks, 0))}
@@ -92,7 +96,7 @@ export default function Collection({ kind }: Props) {
           {playing ? <PauseIcon size={24} weight="fill" /> : <PlayIcon size={24} weight="fill" />}
         </PlayDisc>
         <IconButton
-          label="Tocar em ordem aleatória"
+          label={t.collection.shuffle}
           size="lg"
           disabled={!tracks.length}
           onClick={() => {
@@ -103,7 +107,7 @@ export default function Collection({ kind }: Props) {
           <ShuffleIcon size={24} />
         </IconButton>
         {kind === "playlist" && (
-          <IconButton label="Mais opções da playlist" size="lg" onClick={() => setMoreOpen(true)}>
+          <IconButton label={t.collection.more} size="lg" onClick={() => setMoreOpen(true)}>
             <DotsThreeIcon size={26} weight="bold" />
           </IconButton>
         )}
@@ -115,17 +119,17 @@ export default function Collection({ kind }: Props) {
         ) : (
           <EmptyState
             icon={<MagnifyingGlassIcon size={28} />}
-            title={kind === "history" ? "Nada tocado ainda" : "Ainda vazia"}
+            title={kind === "history" ? t.collection.emptyHistory : t.collection.empty}
             body={
               kind === "favorites"
-                ? "Toque no coração de qualquer faixa para guardá-la aqui."
+                ? t.collection.emptyFavoritesBody
                 : kind === "history"
-                  ? "As músicas que você ouvir aparecem aqui."
-                  : 'Busque músicas e use "Adicionar à playlist" no menu de cada faixa.'
+                  ? t.collection.emptyHistoryBody
+                  : t.collection.emptyPlaylistBody
             }
             action={
-              <Link to="/buscar" className="mt-2 h-11 rounded-full bg-accent px-6 text-sm leading-[44px] font-semibold text-accent-ink">
-                Buscar música
+              <Link to={paths.search} className="mt-2 h-11 rounded-full bg-accent px-6 text-sm leading-[44px] font-semibold text-accent-ink">
+                {t.common.searchMusic}
               </Link>
             }
           />
@@ -144,7 +148,7 @@ export default function Collection({ kind }: Props) {
                 }}
                 className="flex items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-surface-3"
               >
-                <PencilSimpleIcon size={18} className="text-fg-2" /> Renomear
+                <PencilSimpleIcon size={18} className="text-fg-2" /> {t.collection.rename}
               </button>
               <button
                 type="button"
@@ -154,7 +158,7 @@ export default function Collection({ kind }: Props) {
                 }}
                 className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-danger hover:bg-surface-3"
               >
-                <TrashIcon size={18} /> Excluir playlist
+                <TrashIcon size={18} /> {t.collection.deletePlaylist}
               </button>
             </div>
           </Modal>
@@ -162,8 +166,8 @@ export default function Collection({ kind }: Props) {
           <NamePlaylistDialog
             open={renaming}
             initial={playlist.name}
-            title="Renomear playlist"
-            action="Salvar"
+            title={t.collection.renameTitle}
+            action={t.collection.save}
             onClose={() => setRenaming(false)}
             onSubmit={(n) => {
               void lib.renamePlaylist(playlist.id, n);
@@ -171,24 +175,24 @@ export default function Collection({ kind }: Props) {
             }}
           />
 
-          <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Excluir playlist?">
+          <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title={t.collection.deleteTitle}>
             <p className="text-sm text-fg-2">
-              "{playlist.name}" e a lista de {plural(playlist.tracks.length, "faixa", "faixas")} serão apagadas. Isso não pode ser desfeito.
+              {t.collection.deleteBody(playlist.name, playlist.tracks.length)}
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" onClick={() => setConfirmDelete(false)} className="h-11 rounded-full px-5 text-sm font-medium text-fg-2 hover:text-fg">
-                Cancelar
+                {t.common.cancel}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   setConfirmDelete(false);
                   void lib.deletePlaylist(playlist.id);
-                  navigate("/biblioteca");
+                  navigate(paths.library);
                 }}
                 className="h-11 rounded-full bg-danger px-6 text-sm font-semibold text-white"
               >
-                Excluir
+                {t.collection.delete}
               </button>
             </div>
           </Modal>

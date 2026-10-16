@@ -1,26 +1,36 @@
 import { Innertube } from "youtubei.js";
 import { config } from "./config.js";
+import { youtubeLang, type Lang } from "./i18n.js";
 import type { Track } from "./types.js";
 import { VIDEO_ID } from "./types.js";
 import { ytdlpSearch } from "./ytdlp.js";
 
-let client: Promise<Innertube> | null = null;
+// One session per language: YouTube Music words its own texts (genre names, artist bios) in the session's language.
+const clients = new Map<string, Promise<Innertube>>();
 
-function yt(): Promise<Innertube> {
-  client ??= Innertube.create({ retrieve_player: false, lang: config.lang, location: config.location }).catch((err) => {
-    client = null;
-    throw err;
-  });
+function yt(hl: string): Promise<Innertube> {
+  let client = clients.get(hl);
+  if (!client) {
+    client = Innertube.create({ retrieve_player: false, lang: hl, location: config.location }).catch((err) => {
+      clients.delete(hl);
+      throw err;
+    });
+    clients.set(hl, client);
+  }
   return client;
 }
 
-/** Retries once with a fresh InnerTube session, since sessions can go stale. */
-export async function withClient<T>(fn: (yt: Innertube) => Promise<T>): Promise<T> {
+/**
+ * Runs `fn` with a YouTube Music session in `lang` (the server default when the caller has none).
+ * Retries once with a fresh session, since sessions can go stale.
+ */
+export async function withClient<T>(fn: (yt: Innertube) => Promise<T>, lang?: Lang): Promise<T> {
+  const hl = lang ? youtubeLang(lang) : config.lang;
   try {
-    return await fn(await yt());
+    return await fn(await yt(hl));
   } catch {
-    client = null;
-    return fn(await yt());
+    clients.delete(hl);
+    return fn(await yt(hl));
   }
 }
 
@@ -59,9 +69,9 @@ export function toTrack(item: any, kind: Track["kind"]): Track | null {
   };
 }
 
-export async function search(query: string, type: "song" | "video"): Promise<Track[]> {
+export async function search(query: string, type: "song" | "video", lang?: Lang): Promise<Track[]> {
   try {
-    const result = await withClient((yt) => yt.music.search(query, { type }));
+    const result = await withClient((yt) => yt.music.search(query, { type }), lang);
     const shelf = result.contents?.[0] as { contents?: unknown[] } | undefined;
     const tracks = (shelf?.contents ?? []).map((i) => toTrack(i, type)).filter((t): t is Track => !!t);
     if (tracks.length) return tracks;
@@ -81,8 +91,8 @@ export async function search(query: string, type: "song" | "video"): Promise<Tra
     }));
 }
 
-export async function suggestions(query: string): Promise<string[]> {
-  const sections = await withClient((yt) => yt.music.getSearchSuggestions(query));
+export async function suggestions(query: string, lang?: Lang): Promise<string[]> {
+  const sections = await withClient((yt) => yt.music.getSearchSuggestions(query), lang);
   const first = sections[0] as { contents?: { suggestion?: unknown }[] } | undefined;
   return (first?.contents ?? [])
     .map((s) => text(s.suggestion))

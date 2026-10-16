@@ -1,7 +1,8 @@
 import { ArrowsMergeIcon, DownloadSimpleIcon, SwapIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { createBackup, downloadBackup, readBackup, restoreBackup, summarize, type Backup } from "../lib/backup";
-import { cn, plural } from "../lib/format";
+import { useT } from "../i18n";
+import { cn } from "../lib/format";
 import { toast } from "../stores/ui";
 
 type Mode = "merge" | "replace";
@@ -14,6 +15,7 @@ export function BackupSection() {
   const [withSettings, setWithSettings] = useState(true);
   const [busy, setBusy] = useState<"export" | "import" | null>(null);
   const [confirmReplace, setConfirmReplace] = useState(false);
+  const t = useT();
 
   const onExport = async () => {
     setBusy("export");
@@ -21,7 +23,7 @@ export function BackupSection() {
       const backup = await createBackup();
       downloadBackup(backup);
       const s = summarize(backup);
-      toast(`Backup criado: ${plural(s.playlists, "playlist", "playlists")} e ${plural(s.favorites, "favorita", "favoritas")}`);
+      toast(t.backup.created(s.playlists, s.favorites));
     } catch (e) {
       toast((e as Error).message, "error");
     } finally {
@@ -49,12 +51,12 @@ export function BackupSection() {
     try {
       const r = await restoreBackup(pending.backup, mode, withSettings);
       const parts = [
-        r.playlistsAdded && plural(r.playlistsAdded, "playlist nova", "playlists novas"),
-        r.playlistsMerged && plural(r.playlistsMerged, "playlist atualizada", "playlists atualizadas"),
-        r.tracksAdded && plural(r.tracksAdded, "faixa adicionada", "faixas adicionadas"),
-        r.favoritesAdded && plural(r.favoritesAdded, "favorita", "favoritas"),
-      ].filter(Boolean);
-      toast(parts.length ? `Importado: ${parts.join(", ")}` : "Nada novo: sua biblioteca já tinha tudo deste backup");
+        r.playlistsAdded && t.backup.newPlaylists(r.playlistsAdded),
+        r.playlistsMerged && t.backup.updatedPlaylists(r.playlistsMerged),
+        r.tracksAdded && t.backup.addedTracks(r.tracksAdded),
+        r.favoritesAdded && t.backup.addedFavorites(r.favoritesAdded),
+      ].filter((p): p is string => !!p);
+      toast(parts.length ? t.backup.imported(parts) : t.backup.nothingNew);
       setPending(null);
     } catch (e) {
       toast((e as Error).message, "error");
@@ -68,24 +70,22 @@ export function BackupSection() {
 
   return (
     <section className="flex flex-col gap-3">
-      <h3 className="text-xs font-medium text-fg-3">Seus dados</h3>
-      <p className="text-sm text-fg-2">
-        Leve playlists, favoritas e histórico para outro computador ou para o app desktop: exporte um arquivo aqui e importe na outra instância do Musike.
-      </p>
+      <h3 className="text-xs font-medium text-fg-3">{t.backup.yourData}</h3>
+      <p className="text-sm text-fg-2">{t.backup.body}</p>
 
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={onExport} disabled={!!busy} className={cn(action, "bg-surface-1 ring-1 ring-line hover:bg-surface-3")}>
-          <DownloadSimpleIcon size={18} /> {busy === "export" ? "Exportando" : "Exportar"}
+          <DownloadSimpleIcon size={18} /> {busy === "export" ? t.backup.exporting : t.backup.export}
         </button>
         <button type="button" onClick={() => input.current?.click()} disabled={!!busy} className={cn(action, "bg-surface-1 ring-1 ring-line hover:bg-surface-3")}>
-          <UploadSimpleIcon size={18} /> Importar
+          <UploadSimpleIcon size={18} /> {t.backup.import}
         </button>
         <input
           ref={input}
           type="file"
           accept=".json,application/json"
           className="hidden"
-          aria-label="Escolher arquivo de backup do Musike"
+          aria-label={t.backup.pickFile}
           onChange={(e) => void onPick(e.target.files?.[0])}
         />
       </div>
@@ -97,17 +97,20 @@ export function BackupSection() {
               {pending.file}
             </p>
             <p className="text-xs text-fg-2">
-              Exportado em {s.exportedAt.toLocaleDateString("pt-BR")} às {s.exportedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              {t.backup.exportedAt(
+                s.exportedAt.toLocaleDateString(t.locale),
+                s.exportedAt.toLocaleTimeString(t.locale, { hour: "2-digit", minute: "2-digit" }),
+              )}
             </p>
           </div>
 
           <ul className="grid grid-cols-3 gap-2 text-center">
             {[
-              [s.playlists, s.playlists === 1 ? "playlist" : "playlists", `${s.playlistTracks} faixas`],
-              [s.favorites, s.favorites === 1 ? "favorita" : "favoritas", null],
-              [s.history, "no histórico", null],
-            ].map(([n, label, sub]) => (
-              <li key={String(label)} className="rounded-[12px] bg-surface-2 px-2 py-2.5">
+              ["playlists", s.playlists, t.backup.playlistsWord(s.playlists), t.backup.tracksIn(s.playlistTracks)],
+              ["favorites", s.favorites, t.backup.favoritesWord(s.favorites), null],
+              ["history", s.history, t.backup.inHistory, null],
+            ].map(([key, n, label, sub]) => (
+              <li key={key} className="rounded-[12px] bg-surface-2 px-2 py-2.5">
                 <span className="block font-mono text-lg font-semibold tabular-nums">{n}</span>
                 <span className="block text-xs text-fg-2">{label}</span>
                 {sub && <span className="block text-[11px] text-fg-3">{sub}</span>}
@@ -115,11 +118,11 @@ export function BackupSection() {
             ))}
           </ul>
 
-          <div role="radiogroup" aria-label="Como importar" className="grid gap-2">
+          <div role="radiogroup" aria-label={t.backup.howToImport} className="grid gap-2">
             {(
               [
-                ["merge", ArrowsMergeIcon, "Juntar com a minha biblioteca", "Adiciona o que falta. Nada é apagado; playlists com o mesmo nome ganham as faixas novas."],
-                ["replace", SwapIcon, "Substituir tudo", "Apaga a biblioteca atual e deixa exatamente como no backup."],
+                ["merge", ArrowsMergeIcon, t.backup.mergeTitle, t.backup.mergeBody],
+                ["replace", SwapIcon, t.backup.replaceTitle, t.backup.replaceBody],
               ] as const
             ).map(([value, Icon, title, body]) => (
               <button
@@ -148,19 +151,19 @@ export function BackupSection() {
           {pending.backup.settings && (
             <label className="flex cursor-pointer items-center gap-2.5 text-sm text-fg-2">
               <input type="checkbox" checked={withSettings} onChange={(e) => setWithSettings(e.target.checked)} className="size-4 accent-[var(--accent)]" />
-              Aplicar também tema e preferências do player
+              {t.backup.applySettings}
             </label>
           )}
 
           {confirmReplace && (
             <p role="alert" className="text-sm text-danger">
-              Isso apaga suas playlists, favoritas e histórico atuais. Toque em "Substituir agora" para confirmar.
+              {t.backup.confirmReplace}
             </p>
           )}
 
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setPending(null)} className="h-11 rounded-full px-5 text-sm font-medium text-fg-2 hover:text-fg">
-              Cancelar
+              {t.common.cancel}
             </button>
             <button
               type="button"
@@ -171,7 +174,7 @@ export function BackupSection() {
                 mode === "replace" ? "bg-danger text-white" : "bg-accent text-accent-ink",
               )}
             >
-              {busy === "import" ? "Importando" : mode === "replace" ? (confirmReplace ? "Substituir agora" : "Substituir") : "Importar"}
+              {busy === "import" ? t.backup.importing : mode === "replace" ? (confirmReplace ? t.backup.replaceNow : t.backup.replace) : t.backup.import}
             </button>
           </div>
         </div>

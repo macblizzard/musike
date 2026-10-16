@@ -1,6 +1,7 @@
 import { KeyboardIcon, QueueIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
 import { cn } from "../lib/format";
-import { selectCurrent, usePlayer } from "../player/player";
+import { useT } from "../i18n";
+import { selectCurrent, usePlayer, useStatusText } from "../player/player";
 import { useUi } from "../stores/ui";
 import { Artwork } from "./Artwork";
 import { FavoriteButton, ModeSwitch, Scrubber, Transport, Volume } from "./Controls";
@@ -9,7 +10,8 @@ import { IconButton } from "./IconButton";
 /** Desktop and tablet player: a floating island under the content. */
 export function PlayerBar() {
   const track = usePlayer(selectCurrent);
-  const statusText = usePlayer((s) => s.statusText);
+  const statusText = useStatusText();
+  const t = useT();
   const status = usePlayer((s) => s.status);
   const panelOpen = useUi((s) => s.panelOpen || s.drawerOpen);
   const panelTab = useUi((s) => s.panelTab);
@@ -25,7 +27,7 @@ export function PlayerBar() {
               <button
                 type="button"
                 onClick={() => togglePanel("playing")}
-                aria-label="Mostrar Tocando agora"
+                aria-label={t.player.showNowPlaying}
                 className="group relative shrink-0 rounded-[10px] transition-transform active:scale-[0.96]"
               >
                 <Artwork src={track.thumb} className="size-14 rounded-[10px]" />
@@ -39,7 +41,7 @@ export function PlayerBar() {
               <FavoriteButton track={track} size="sm" />
             </>
           ) : (
-            <p className="truncate pl-1 text-sm text-fg-3">Nada tocando. Busque algo para começar.</p>
+            <p className="truncate pl-1 text-sm text-fg-3">{t.player.nothingPlaying}</p>
           )}
         </div>
 
@@ -51,7 +53,7 @@ export function PlayerBar() {
         <div className="flex items-center justify-end gap-1">
           <ModeSwitch className="max-2xl:hidden" />
           <IconButton
-            label="Fila"
+            label={t.player.queue}
             size="sm"
             active={panelOpen && panelTab === "queue"}
             onClick={() => togglePanel("queue")}
@@ -59,7 +61,7 @@ export function PlayerBar() {
             <QueueIcon size={18} />
           </IconButton>
           <IconButton
-            label="Painel Tocando agora"
+            label={t.player.nowPlayingPanel}
             size="sm"
             active={panelOpen && panelTab === "playing"}
             onClick={() => togglePanel("playing")}
@@ -67,7 +69,7 @@ export function PlayerBar() {
             <SidebarSimpleIcon size={18} mirrored />
           </IconButton>
           <Volume className="max-lg:hidden" />
-          <IconButton label="Atalhos de teclado (?)" size="sm" onClick={() => setShortcutsOpen(true)} className="max-xl:hidden">
+          <IconButton label={t.player.shortcuts} size="sm" onClick={() => setShortcutsOpen(true)} className="max-xl:hidden">
             <KeyboardIcon size={18} />
           </IconButton>
         </div>

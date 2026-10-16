@@ -1,6 +1,7 @@
 import { CheckIcon, PlusIcon } from "@phosphor-icons/react";
 import { useEffect, useState, type FormEvent } from "react";
-import { cn, plural } from "../lib/format";
+import { useT, type Messages } from "../i18n";
+import { cn } from "../lib/format";
 import { useLibrary } from "../stores/library";
 import { useUi } from "../stores/ui";
 import { Artwork } from "./Artwork";
@@ -15,6 +16,7 @@ export function AddToPlaylistDialog() {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const many = !!tracks && tracks.length > 1;
+  const t = useT();
 
   useEffect(() => {
     if (tracks) {
@@ -34,12 +36,12 @@ export function AddToPlaylistDialog() {
     <Modal
       open={!!tracks}
       onClose={() => close(null)}
-      title={many ? `Adicionar ${tracks?.length} faixas à playlist` : "Adicionar à playlist"}
+      title={many ? t.dialogs.addManyToPlaylist(tracks?.length ?? 0) : t.dialogs.addToPlaylist}
     >
       {creating ? (
         <form onSubmit={onCreate} className="flex flex-col gap-3">
           <label htmlFor="new-playlist" className="text-sm text-fg-2">
-            Nome da nova playlist
+            {t.dialogs.newPlaylistName}
           </label>
           <input
             id="new-playlist"
@@ -47,13 +49,13 @@ export function AddToPlaylistDialog() {
             value={name}
             maxLength={80}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Ex.: Treino, Foco, Estrada"
+            placeholder={t.dialogs.namePlaceholder}
             className="h-12 rounded-full border border-line-strong bg-surface-1 px-5 text-[15px] placeholder:text-fg-3 focus:border-accent focus:outline-none"
           />
           <div className="flex justify-end gap-2 pt-1">
             {playlists.length > 0 && (
               <button type="button" onClick={() => setCreating(false)} className="h-11 rounded-full px-5 text-sm font-medium text-fg-2 hover:text-fg">
-                Voltar
+                {t.common.back}
               </button>
             )}
             <button
@@ -61,7 +63,7 @@ export function AddToPlaylistDialog() {
               disabled={!name.trim()}
               className="h-11 rounded-full bg-accent px-6 text-sm font-semibold text-accent-ink transition-transform active:scale-[0.97] disabled:opacity-40"
             >
-              Criar e adicionar
+              {t.dialogs.createAndAdd}
             </button>
           </div>
         </form>
@@ -75,7 +77,7 @@ export function AddToPlaylistDialog() {
             <span className="grid size-11 place-items-center rounded-[10px] bg-accent-soft text-accent-text">
               <PlusIcon size={20} />
             </span>
-            <span className="font-medium">Nova playlist</span>
+            <span className="font-medium">{t.nav.newPlaylist}</span>
           </button>
           {playlists.map((p) => {
             // Done only when it already has every track being added.
@@ -95,7 +97,7 @@ export function AddToPlaylistDialog() {
                 <Artwork src={p.tracks[0]?.thumb} className="size-11 rounded-[10px]" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{p.name}</span>
-                  <span className="block text-sm text-fg-2">{plural(p.tracks.length, "faixa", "faixas")}</span>
+                  <span className="block text-sm text-fg-2">{t.common.tracks(p.tracks.length)}</span>
                 </span>
                 {has && <CheckIcon size={18} className="text-accent-text" />}
               </button>
@@ -123,6 +125,7 @@ export function NamePlaylistDialog({
   onClose: () => void;
 }) {
   const [name, setName] = useState(initial);
+  const t = useT();
   useEffect(() => {
     if (open) setName(initial);
   }, [open, initial]);
@@ -137,7 +140,7 @@ export function NamePlaylistDialog({
         className="flex flex-col gap-3"
       >
         <label htmlFor="playlist-name" className="text-sm text-fg-2">
-          Nome
+          {t.dialogs.name}
         </label>
         <input
           id="playlist-name"
@@ -145,7 +148,7 @@ export function NamePlaylistDialog({
           value={name}
           maxLength={80}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Ex.: Treino, Foco, Estrada"
+          placeholder={t.dialogs.namePlaceholder}
           className="h-12 rounded-full border border-line-strong bg-surface-1 px-5 text-[15px] placeholder:text-fg-3 focus:border-accent focus:outline-none"
         />
         <div className="flex justify-end pt-1">
@@ -162,34 +165,35 @@ export function NamePlaylistDialog({
   );
 }
 
-const SHORTCUTS: [string, string][] = [
-  ["Espaço", "Tocar / pausar"],
-  ["← →", "Voltar / avançar 5 s"],
-  ["Shift + ← →", "Faixa anterior / próxima"],
-  ["↑ ↓", "Volume"],
-  ["M", "Mudo"],
-  ["L", "Favoritar faixa atual"],
-  ["S", "Ordem aleatória"],
-  ["R", "Repetir"],
-  ["V", "Alternar vídeo"],
-  ["F", "Maximizar vídeo"],
-  ["Q", "Fila"],
-  ["/", "Buscar"],
-  ["?", "Esta lista"],
+const SHORTCUTS: [string | null, keyof Messages["dialogs"]["shortcuts"]][] = [
+  [null, "playPause"], // the Space key, named in each language
+  ["← →", "seek"],
+  ["Shift + ← →", "skip"],
+  ["↑ ↓", "volume"],
+  ["M", "mute"],
+  ["L", "favorite"],
+  ["S", "shuffle"],
+  ["R", "repeat"],
+  ["V", "video"],
+  ["F", "theater"],
+  ["Q", "queue"],
+  ["/", "search"],
+  ["?", "help"],
 ];
 
 export function ShortcutsDialog() {
   const open = useUi((s) => s.shortcutsOpen);
   const setOpen = useUi((s) => s.setShortcutsOpen);
+  const t = useT();
   return (
-    <Modal open={open} onClose={() => setOpen(false)} title="Atalhos de teclado">
+    <Modal open={open} onClose={() => setOpen(false)} title={t.dialogs.shortcutsTitle}>
       <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2.5 text-sm">
         {SHORTCUTS.map(([keys, what]) => (
-          <div key={keys} className="contents">
+          <div key={what} className="contents">
             <dt className="flex justify-end">
-              <kbd className="kbd">{keys}</kbd>
+              <kbd className="kbd">{keys ?? t.dialogs.space}</kbd>
             </dt>
-            <dd className="text-fg-2">{what}</dd>
+            <dd className="text-fg-2">{t.dialogs.shortcuts[what]}</dd>
           </div>
         ))}
       </dl>

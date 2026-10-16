@@ -1,24 +1,27 @@
 import { BooksIcon, HouseIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { NavLink, useNavigate } from "react-router";
 import { cn } from "../lib/format";
-import { selectCurrent, usePlayer } from "../player/player";
+import { useT } from "../i18n";
+import { NOW_PLAYING_HASH, paths } from "../lib/routes";
+import { selectCurrent, usePlayer, useStatusText } from "../player/player";
 import { Artwork } from "./Artwork";
 import { PlayPauseIcon } from "./Controls";
 
 const tabs = [
-  { to: "/", label: "Início", Icon: HouseIcon, end: true },
-  { to: "/buscar", label: "Buscar", Icon: MagnifyingGlassIcon, end: false },
-  { to: "/biblioteca", label: "Biblioteca", Icon: BooksIcon, end: false },
-];
+  { to: paths.home, key: "home", Icon: HouseIcon, end: true },
+  { to: paths.search, key: "search", Icon: MagnifyingGlassIcon, end: false },
+  { to: paths.library, key: "library", Icon: BooksIcon, end: false },
+] as const;
 
 export function TabBar() {
+  const t = useT();
   return (
     <nav
-      aria-label="Navegação principal"
+      aria-label={t.nav.main}
       className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/85 backdrop-blur-xl"
     >
       <ul className="mx-auto grid h-16 max-w-md grid-cols-3">
-        {tabs.map(({ to, label, Icon, end }) => (
+        {tabs.map(({ to, key, Icon, end }) => (
           <li key={to}>
             <NavLink
               to={to}
@@ -39,7 +42,7 @@ export function TabBar() {
                     )}
                   />
                   <Icon size={24} weight={isActive ? "fill" : "regular"} />
-                  {label}
+                  {t.nav[key]}
                 </>
               )}
             </NavLink>
@@ -55,8 +58,9 @@ export function MiniPlayer() {
   const position = usePlayer((s) => s.position);
   const duration = usePlayer((s) => s.duration);
   const status = usePlayer((s) => s.status);
-  const statusText = usePlayer((s) => s.statusText);
+  const statusText = useStatusText();
   const toggle = usePlayer((s) => s.toggle);
+  const t = useT();
   const navigate = useNavigate();
   if (!track) return null;
   const pct = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
@@ -67,9 +71,9 @@ export function MiniPlayer() {
         <div className="island-core relative flex h-14 items-center gap-3 overflow-hidden pr-1 pl-1.5">
           <button
             type="button"
-            onClick={() => navigate({ hash: "tocando" })}
+            onClick={() => navigate({ hash: NOW_PLAYING_HASH })}
             className="flex min-w-0 flex-1 items-center gap-3 text-left"
-            aria-label={`Abrir Tocando agora: ${track.title}`}
+            aria-label={t.player.openNowPlaying(track.title)}
           >
             <Artwork src={track.thumb} className="size-11 rounded-[10px]" />
             <span className="min-w-0">
@@ -82,7 +86,7 @@ export function MiniPlayer() {
           <button
             type="button"
             onClick={toggle}
-            aria-label={status === "playing" ? "Pausar" : "Tocar"}
+            aria-label={status === "playing" ? t.common.pause : t.common.play}
             className="grid size-11 shrink-0 place-items-center rounded-full text-fg active:scale-90"
           >
             <PlayPauseIcon size={24} />

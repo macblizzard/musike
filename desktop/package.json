@@ -1,8 +1,8 @@
 {
   "name": "musike-desktop",
   "productName": "Musike",
-  "version": "1.1.0",
-  "description": "Sua música, sem interrupção.",
+  "version": "1.2.0",
+  "description": "Your music, uninterrupted.",
   "author": "Musike",
   "private": true,
   "main": "dist/main.mjs",
@@ -55,9 +55,10 @@
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerLanguages": [
+        "en_US",
         "pt_BR"
       ],
-      "language": "1046",
+      "language": "1033",
       "deleteAppDataOnUninstall": false,
       "include": "build/installer.nsh"
     }

@@ -6,7 +6,9 @@ import { Artwork } from "../components/Artwork";
 import { EmptyState, PageHeader } from "../components/Page";
 import { SelectableRow, SelectedCount, SelectionBar } from "../components/Selection";
 import { api } from "../lib/api";
-import { cn, plural } from "../lib/format";
+import { useT } from "../i18n";
+import { cn } from "../lib/format";
+import { paths } from "../lib/routes";
 import type { Track } from "../lib/types";
 import { usePlayer } from "../player/player";
 
@@ -100,6 +102,7 @@ export default function BatchSearch() {
   const location = useLocation();
   const navigate = useNavigate();
   const input = useRef<HTMLTextAreaElement>(null);
+  const t = useT();
 
   const terms = parseList(text);
   const chosen = pickedTracks(entries, true);
@@ -125,13 +128,13 @@ export default function BatchSearch() {
   return (
     <div className="pb-8">
       <PageHeader
-        title="Buscar lista"
+        title={t.batch.title}
         actions={
           <Link
-            to="/buscar"
+            to={paths.search}
             className="flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-fg-2 hover:bg-surface-3 hover:text-fg"
           >
-            <ArrowLeftIcon size={16} /> Busca simples
+            <ArrowLeftIcon size={16} /> {t.batch.simple}
           </Link>
         }
       />
@@ -144,7 +147,7 @@ export default function BatchSearch() {
         className="flex flex-col gap-3 px-4 pt-1 md:px-6"
       >
         <label htmlFor="batch-input" className="text-sm text-fg-2">
-          Escreva as músicas separadas por vírgula (ou uma por linha). Dá para incluir o artista: "Evidências Chitãozinho".
+          {t.batch.label}
         </label>
         <textarea
           id="batch-input"
@@ -159,19 +162,19 @@ export default function BatchSearch() {
               submit();
             }
           }}
-          placeholder="Ex.: Evidências, Trem-Bala, Garota de Ipanema"
+          placeholder={t.batch.placeholder}
           className="scroll-area min-h-24 w-full resize-y rounded-[20px] border border-line-strong bg-surface-2 px-5 py-3.5 text-[16px] placeholder:text-fg-3 focus:border-accent focus:bg-surface-1 focus:outline-none"
         />
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm text-fg-3">
-            {terms.length === MAX_TERMS ? `Máximo de ${MAX_TERMS} por vez` : terms.length ? plural(terms.length, "música", "músicas") : ""}
+            {terms.length === MAX_TERMS ? t.batch.max(MAX_TERMS) : terms.length ? t.common.songs(terms.length) : ""}
           </span>
           <button
             type="submit"
             disabled={!terms.length}
             className="h-11 rounded-full bg-accent px-6 text-sm font-semibold text-accent-ink transition-transform active:scale-[0.97] disabled:opacity-40"
           >
-            {terms.length > 1 ? `Buscar ${terms.length} músicas` : "Buscar"}
+            {terms.length > 1 ? t.batch.searchN(terms.length) : t.batch.search}
           </button>
         </div>
       </form>
@@ -184,7 +187,7 @@ export default function BatchSearch() {
             all={found}
             allSelected={allSelected}
             onToggleAll={() => selectAll(!allSelected)}
-            label={pending ? `Buscando… ${found.length}/${entries.length}` : <SelectedCount n={chosen.length} total={entries.length} />}
+            label={pending ? t.batch.searching(found.length, entries.length) : <SelectedCount n={chosen.length} total={entries.length} />}
           />
 
           <ul className="mt-2 flex flex-col px-2 md:px-3">
@@ -198,8 +201,8 @@ export default function BatchSearch() {
       {entries.length === 0 && (
         <EmptyState
           icon={<ListBulletsIcon size={28} />}
-          title="Várias músicas de uma vez"
-          body="O Musike busca cada uma e já seleciona o melhor resultado. Confira, troque o que vier errado e depois toque, favorite ou mande tudo para uma playlist."
+          title={t.batch.emptyTitle}
+          body={t.batch.emptyBody}
         />
       )}
     </div>
@@ -212,6 +215,7 @@ function EntryRow({ entry, index }: { entry: Entry; index: number }) {
   const playTrack = usePlayer((s) => s.playTrack);
   const [open, setOpen] = useState(false);
   const track = entry.options[entry.pick];
+  const t = useT();
 
   if (entry.status === "loading") {
     return (
@@ -235,14 +239,14 @@ function EntryRow({ entry, index }: { entry: Entry; index: number }) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-medium">{entry.query}</span>
-          <span className="block text-[13px] text-fg-2">{entry.status === "empty" ? "Nada encontrado" : "A busca falhou"}</span>
+          <span className="block text-[13px] text-fg-2">{entry.status === "empty" ? t.batch.notFound : t.batch.failed}</span>
         </span>
         <button
           type="button"
           onClick={() => retry(index)}
           className="h-9 rounded-full bg-surface-3 px-4 text-sm font-medium hover:bg-surface-4"
         >
-          Tentar de novo
+          {t.common.retry}
         </button>
       </li>
     );
@@ -255,18 +259,18 @@ function EntryRow({ entry, index }: { entry: Entry; index: number }) {
         selected={entry.selected}
         onToggle={() => update(index, { selected: !entry.selected })}
         onPlay={() => playTrack(track)}
-        note={<span className="text-fg-3"> · buscou "{entry.query}"</span>}
+        note={<span className="text-fg-3">{t.batch.searched(entry.query)}</span>}
         trailing={
           entry.options.length > 1 && (
             <button
               type="button"
               onClick={() => setOpen((o) => !o)}
               aria-expanded={open}
-              title="Trocar por outro resultado"
+              title={t.batch.swap}
               className="flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-sm text-fg-2 hover:bg-surface-3 hover:text-fg"
             >
               <ArrowsClockwiseIcon size={16} />
-              <span className="hidden sm:inline">Trocar</span>
+              <span className="hidden sm:inline">{t.batch.swapShort}</span>
               <CaretDownIcon size={12} className={cn("transition-transform", open && "rotate-180")} />
             </button>
           )
@@ -289,7 +293,7 @@ function EntryRow({ entry, index }: { entry: Entry; index: number }) {
                 <span className="min-w-0 flex-1">
                   <span className={cn("block truncate text-sm font-medium", j === entry.pick && "text-accent-text")}>{opt.title}</span>
                   <span className="block truncate text-[13px] text-fg-2">
-                    {[opt.artist, opt.album].filter(Boolean).join(" · ") || "YouTube"}
+                    {[opt.artist, opt.album].filter(Boolean).join(" · ") || t.common.youtube}
                   </span>
                 </span>
                 {j === entry.pick && <CheckIcon size={16} className="text-accent-text" />}

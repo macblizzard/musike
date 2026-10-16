@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useT } from "../i18n";
 import { cn, formatTime } from "../lib/format";
 import type { Track } from "../lib/types";
 import { usePlayer } from "../player/player";
@@ -31,6 +32,7 @@ export function PlayPauseIcon({ size = 22 }: { size?: number }) {
 }
 
 export function Transport({ big = false }: { big?: boolean }) {
+  const t = useT();
   const p = usePlayer(
     useShallow((s) => ({
       hasQueue: s.queue.length > 0,
@@ -46,13 +48,13 @@ export function Transport({ big = false }: { big?: boolean }) {
   );
   const hasTrack = p.hasQueue;
   const RepeatGlyph = p.repeat === "one" ? RepeatOnceIcon : RepeatIcon;
-  const repeatLabel = { off: "Repetir: desligado", all: "Repetir: fila", one: "Repetir: faixa" }[p.repeat];
+  const repeatLabel = { off: t.player.repeatOff, all: t.player.repeatAll, one: t.player.repeatOne }[p.repeat];
   const iconSize = big ? 26 : 19;
 
   return (
     <div className={cn("flex items-center", big ? "justify-between" : "gap-2")}>
       <IconButton
-        label={p.shuffle ? "Ordem aleatória: ligada" : "Ordem aleatória: desligada"}
+        label={p.shuffle ? t.player.shuffleOn : t.player.shuffleOff}
         active={p.shuffle}
         size={big ? "lg" : "sm"}
         onClick={p.toggleShuffle}
@@ -61,18 +63,18 @@ export function Transport({ big = false }: { big?: boolean }) {
         <ShuffleIcon size={big ? 22 : 17} />
         {p.shuffle && <span className="absolute bottom-0.5 size-1 rounded-full bg-accent-text" />}
       </IconButton>
-      <IconButton label="Anterior" size={big ? "lg" : "md"} onClick={p.prev} disabled={!hasTrack} className="text-fg">
+      <IconButton label={t.player.previous} size={big ? "lg" : "md"} onClick={p.prev} disabled={!hasTrack} className="text-fg">
         <SkipBackIcon size={iconSize} weight="fill" />
       </IconButton>
       <PlayDisc
-        label={p.status === "playing" ? "Pausar" : "Tocar"}
+        label={p.status === "playing" ? t.common.pause : t.common.play}
         px={big ? 72 : 40}
         onClick={p.toggle}
         disabled={!hasTrack}
       >
         <PlayPauseIcon size={big ? 30 : 20} />
       </PlayDisc>
-      <IconButton label="Próxima" size={big ? "lg" : "md"} onClick={p.next} disabled={!hasTrack} className="text-fg">
+      <IconButton label={t.player.next} size={big ? "lg" : "md"} onClick={p.next} disabled={!hasTrack} className="text-fg">
         <SkipForwardIcon size={iconSize} weight="fill" />
       </IconButton>
       <IconButton
@@ -90,6 +92,7 @@ export function Transport({ big = false }: { big?: boolean }) {
 }
 
 export function Scrubber({ touch = false, className }: { touch?: boolean; className?: string }) {
+  const t = useT();
   const position = usePlayer((s) => s.position);
   const duration = usePlayer((s) => s.duration);
   const buffered = usePlayer((s) => s.buffered);
@@ -103,7 +106,7 @@ export function Scrubber({ touch = false, className }: { touch?: boolean; classN
   if (touch) {
     return (
       <div className={className}>
-        <Slider label="Progresso" value={position} max={duration} buffered={buffered} onChange={seek} onScrub={setScrub} showThumb step={5} valueText={formatTime} />
+        <Slider label={t.player.progress} value={position} max={duration} buffered={buffered} onChange={seek} onScrub={setScrub} showThumb step={5} valueText={formatTime} />
         <div className="mt-0.5 flex justify-between">
           {time}
           {total}
@@ -114,13 +117,14 @@ export function Scrubber({ touch = false, className }: { touch?: boolean; classN
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <span className="text-right">{time}</span>
-      <Slider label="Progresso" value={position} max={duration} buffered={buffered} onChange={seek} onScrub={setScrub} step={5} valueText={formatTime} className="flex-1" />
+      <Slider label={t.player.progress} value={position} max={duration} buffered={buffered} onChange={seek} onScrub={setScrub} step={5} valueText={formatTime} className="flex-1" />
       {total}
     </div>
   );
 }
 
 export function Volume({ className }: { className?: string }) {
+  const t = useT();
   const volume = usePlayer((s) => s.volume);
   const muted = usePlayer((s) => s.muted);
   const setVolume = usePlayer((s) => s.setVolume);
@@ -129,10 +133,10 @@ export function Volume({ className }: { className?: string }) {
   const Glyph = level === 0 ? SpeakerXIcon : level < 0.5 ? SpeakerLowIcon : SpeakerHighIcon;
   return (
     <div className={cn("flex items-center gap-1", className)}>
-      <IconButton label={muted ? "Ativar som" : "Mudo"} size="sm" onClick={toggleMute}>
+      <IconButton label={muted ? t.player.unmute : t.player.mute} size="sm" onClick={toggleMute}>
         <Glyph size={18} />
       </IconButton>
-      <Slider label="Volume" value={level} max={1} step={0.05} live onChange={setVolume} valueText={(v) => `${Math.round(v * 100)}%`} className="w-24" />
+      <Slider label={t.player.volume} value={level} max={1} step={0.05} live onChange={setVolume} valueText={(v) => `${Math.round(v * 100)}%`} className="w-24" />
     </div>
   );
 }
@@ -140,9 +144,10 @@ export function Volume({ className }: { className?: string }) {
 export function FavoriteButton({ track, size = "md" }: { track: Track | null; size?: "sm" | "md" | "lg" }) {
   const isFavorite = useLibrary((s) => !!track && s.favorites.some((t) => t.id === track.id));
   const toggle = useLibrary((s) => s.toggleFavorite);
+  const t = useT();
   return (
     <IconButton
-      label={isFavorite ? "Remover das Favoritas" : "Adicionar às Favoritas"}
+      label={isFavorite ? t.common.removeFromFavorites : t.common.addToFavorites}
       active={isFavorite}
       size={size}
       disabled={!track}
@@ -155,6 +160,7 @@ export function FavoriteButton({ track, size = "md" }: { track: Track | null; si
 
 /** Audio / Video segmented switch. For songs, Video plays the song's music video when YouTube has one. */
 export function ModeSwitch({ className }: { className?: string }) {
+  const t = useT();
   const preferVideo = usePlayer((s) => s.preferVideo);
   const setPreferVideo = usePlayer((s) => s.setPreferVideo);
   const quality = usePlayer((s) => s.quality);
@@ -169,9 +175,9 @@ export function ModeSwitch({ className }: { className?: string }) {
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <div role="radiogroup" aria-label="Modo de reprodução" className="flex rounded-full bg-surface-1 p-1 ring-1 ring-line">
+      <div role="radiogroup" aria-label={t.player.mode} className="flex rounded-full bg-surface-1 p-1 ring-1 ring-line">
         <button type="button" role="radio" aria-checked={!preferVideo} className={seg(!preferVideo)} onClick={() => setPreferVideo(false)}>
-          <MusicNotesIcon size={15} /> Áudio
+          <MusicNotesIcon size={15} /> {t.player.audio}
         </button>
         <button
           type="button"
@@ -179,16 +185,16 @@ export function ModeSwitch({ className }: { className?: string }) {
           aria-checked={preferVideo}
           className={seg(preferVideo)}
           onClick={() => setPreferVideo(true)}
-          title="Ver o clipe"
+          title={t.player.watchClip}
         >
-          <VideoCameraIcon size={15} /> Vídeo
+          <VideoCameraIcon size={15} /> {t.player.video}
         </button>
       </div>
       {showingVideo && (
         <button
           type="button"
           onClick={() => setQuality(quality === "sd" ? "hd" : "sd")}
-          title={quality === "sd" ? "Mudar para HD (720p, baixa antes de tocar)" : "Mudar para SD (360p, começa mais rápido quando disponível)"}
+          title={quality === "sd" ? t.player.toHd : t.player.toSd}
           className={cn(
             "h-9 rounded-full px-3 font-mono text-[12px] font-semibold ring-1 transition-colors",
             quality === "hd" ? "bg-accent-soft text-accent-text ring-accent/40" : "text-fg-2 ring-line hover:text-fg",

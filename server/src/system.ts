@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { downloads, ensureEssentials } from "./bootstrap.js";
 import { config } from "./config.js";
 import { refreshTools, tools } from "./tools.js";
+import { msg, tr, type Lang, type Text } from "./i18n.js";
 import { HttpError } from "./types.js";
 import { clearResolved, holdDuring } from "./ytdlp.js";
 
@@ -15,8 +16,9 @@ export interface Job {
   finishedAt?: number;
   from: string | null;
   to: string | null;
-  message: string;
-  log: string[];
+  message: Text;
+  /** Tool output as it came, plus Musike's own lines (translated when sent). */
+  log: Text[];
 }
 
 const RELEASES: Record<Channel, string> = {
@@ -89,7 +91,12 @@ function newer(a: string, b: string): boolean {
   return false;
 }
 
-export async function systemInfo() {
+/** A job as the app shows it: its messages in `lang`. */
+export function presentJob(job: Job, lang: Lang) {
+  return { ...job, message: tr(lang, job.message), log: job.log.map((line) => tr(lang, line)) };
+}
+
+export async function systemInfo(lang: Lang) {
   const t = tools();
   // Re-read when yt-dlp showed up since the last check (e.g. downloaded on first launch).
   if (version === undefined || (version === null && t.ytdlp)) version = await readVersion();
@@ -107,8 +114,8 @@ export async function systemInfo() {
     deno: t.deno,
     ffmpeg: t.ffmpeg,
     canInstall: !!t.winget || !!config.binDir,
-    downloads: downloads(),
-    job,
+    downloads: downloads(lang),
+    job: job && presentJob(job, lang),
   };
 }
 
@@ -117,7 +124,7 @@ export function startJob(channel: Channel) {
   const t = tools();
   const kind: Job["kind"] = t.ytdlp ? "update" : "install";
   if (kind === "install" && !t.winget && !config.binDir) {
-    throw new HttpError(400, "yt-dlp não encontrado e o winget não está disponível. Instale manualmente: https://github.com/yt-dlp/yt-dlp");
+    throw new HttpError(400, msg("noWinget"));
   }
 
   const current: Job = {
@@ -127,11 +134,11 @@ export function startJob(channel: Channel) {
     startedAt: Date.now(),
     from: version ?? null,
     to: null,
-    message: kind === "install" ? "Instalando yt-dlp" : "Atualizando yt-dlp",
+    message: msg(kind === "install" ? "installingYtdlp" : "updatingYtdlp"),
     log: [],
   };
   job = current;
-  const log = (line: string) => {
+  const log = (line: Text) => {
     current.log = [...current.log, line].slice(-40);
   };
 
@@ -141,15 +148,15 @@ export function startJob(channel: Channel) {
       code = await stream(t.ytdlp!, ["--update-to", channel], log, 5 * 60_000);
       // Builds that can't self-update (e.g. installed by a package manager) fall back to winget.
       if (code !== 0 && t.winget) {
-        log("Atualização direta falhou, tentando pelo winget");
+        log(msg("directUpdateFailed"));
         code = await stream(t.winget, wingetArgs("upgrade"), log, 10 * 60_000);
       }
     } else if (config.binDir) {
       // Desktop app: download the official builds into Musike's own folder (no admin, no winget).
-      log("Baixando yt-dlp e Deno do GitHub");
+      log(msg("downloadingTools"));
       code = await ensureEssentials().then(
         () => 0,
-        (err: Error) => (log(err.message), 1),
+        (err: Error) => (log(err instanceof HttpError ? err.text : err.message), 1),
       );
     } else {
       code = await stream(t.winget!, wingetArgs("install"), log, 10 * 60_000);
@@ -162,18 +169,18 @@ export function startJob(channel: Channel) {
     current.finishedAt = Date.now();
     if (version && (code === 0 || current.from !== version)) {
       current.status = "done";
-      current.message =
-        current.from === version ? `Já está na versão mais recente (${version})` : `yt-dlp ${version} pronto para uso`;
+      current.message = msg(current.from === version ? "alreadyLatest" : "ytdlpReady", { version });
     } else {
       current.status = "error";
-      current.message = current.log.findLast((l) => /error|erro|failed|falha/i.test(l)) ?? "Não foi possível atualizar o yt-dlp.";
+      // The tool's own error line says the most; Musike's lines are never errors.
+      current.message = current.log.findLast((l) => typeof l === "string" && /error|failed/i.test(l)) ?? msg("updateFailed");
     }
   };
 
   void holdDuring(work().catch((err: Error) => {
     current.status = "error";
     current.finishedAt = Date.now();
-    current.message = err.message;
+    current.message = err instanceof HttpError ? err.text : err.message;
   }));
   return current;
 }

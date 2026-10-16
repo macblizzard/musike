@@ -5,6 +5,7 @@ import path from "node:path";
 import { ensureComponent } from "./bootstrap.js";
 import { config } from "./config.js";
 import { tools } from "./tools.js";
+import { msg } from "./i18n.js";
 import { HttpError } from "./types.js";
 
 export interface StreamFormat {
@@ -53,7 +54,7 @@ async function run(args: string[], timeoutMs: number): Promise<string> {
   if (maintenance) await maintenance.catch(() => {});
   const { ytdlp, env } = tools();
   if (!ytdlp) {
-    throw new HttpError(503, "O yt-dlp não foi encontrado neste computador. Abra Sistema no Musike para instalar.", "tool_missing");
+    throw new HttpError(503, msg("ytdlpMissing"), "tool_missing");
   }
   return new Promise((resolve, reject) => {
     const child = spawn(ytdlp, [...config.ytdlpExtraArgs, ...args], { windowsHide: true, env });
@@ -61,13 +62,13 @@ async function run(args: string[], timeoutMs: number): Promise<string> {
     let stderr = "";
     const timer = setTimeout(() => {
       child.kill();
-      reject(new HttpError(504, "O yt-dlp demorou demais para responder."));
+      reject(new HttpError(504, msg("ytdlpTimeout")));
     }, timeoutMs);
     child.stdout.on("data", (d) => (stdout += d));
     child.stderr.on("data", (d) => (stderr += d));
     child.on("error", (err) => {
       clearTimeout(timer);
-      reject(new HttpError(503, `Não foi possível executar o yt-dlp (${err.message}). Abra Sistema no Musike.`, "tool_missing"));
+      reject(new HttpError(503, msg("ytdlpCantRun", { error: err.message }), "tool_missing"));
     });
     child.on("close", (code) => {
       clearTimeout(timer);
@@ -83,18 +84,18 @@ const OUTDATED = /nsig|signature|n challenge|JavaScript runtime|Unable to extrac
 function toHttpError(stderr: string): HttpError {
   const line = stderr.split("\n").find((l) => l.includes("ERROR")) ?? stderr.trim().split("\n").pop() ?? "";
   if (/confirm you.re not a bot|Sign in to confirm/i.test(line)) {
-    return new HttpError(503, "O YouTube pediu verificação anti-bot. Configure YTDLP_EXTRA_ARGS com cookies (veja o README).", "bot_check");
+    return new HttpError(503, msg("botCheck"), "bot_check");
   }
   if (/Video unavailable|Private video|removed/i.test(line)) {
-    return new HttpError(404, "Vídeo indisponível no YouTube.");
+    return new HttpError(404, msg("videoUnavailable"));
   }
   if (/age-restricted|inappropriate|confirm your age/i.test(line)) {
-    return new HttpError(403, "Vídeo com restrição de idade. Requer cookies de uma conta logada.");
+    return new HttpError(403, msg("ageRestricted"));
   }
-  const detail = line.replace(/^ERROR:\s*/, "").slice(0, 240) || "Falha no yt-dlp.";
-  if (OUTDATED.test(stderr)) {
-    return new HttpError(502, `${detail} O YouTube pode ter mudado: atualize o yt-dlp em Sistema.`, "maybe_outdated");
-  }
+  // yt-dlp's own words stay as they are (English); only the advice around them is translated.
+  const detail = line.replace(/^ERROR:\s*/, "").slice(0, 240);
+  if (!detail) return new HttpError(502, msg("ytdlpFailed"), "maybe_outdated");
+  if (OUTDATED.test(stderr)) return new HttpError(502, msg("ytdlpOutdated", { detail }), "maybe_outdated");
   return new HttpError(502, detail, "maybe_outdated");
 }
 
@@ -147,7 +148,7 @@ export function resolveStreams(id: string): Promise<Resolved> {
     .then((stdout) => {
       const info = JSON.parse(stdout) as { title: string; duration?: number; formats: RawFormat[] };
       const audio = pickAudio(info.formats);
-      if (!audio) throw new HttpError(404, "Nenhum formato de áudio disponível para este vídeo.");
+      if (!audio) throw new HttpError(404, msg("noAudio"));
       const video = pickVideo(info.formats);
       const resolved: Resolved = {
         id,

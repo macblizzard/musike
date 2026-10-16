@@ -7,7 +7,9 @@ import { SelectableTrackList, Short } from "../components/Selection";
 import { TrackListSkeleton } from "../components/TrackList";
 import { useRemote } from "../hooks/useRemote";
 import { api } from "../lib/api";
-import { cn, plural } from "../lib/format";
+import { useI18n, useT, type Lang } from "../i18n";
+import { cn } from "../lib/format";
+import { paths } from "../lib/routes";
 import type { GenreArtist, GenrePage } from "../lib/types";
 
 type View = "artists" | "tracks";
@@ -15,8 +17,9 @@ type View = "artists" | "tracks";
 /** A genre: its bands and artists (each opens their greatest hits) or all its songs in one list. */
 export default function Genre() {
   const { id = "" } = useParams();
-  // Keyed, so switching genres starts from a clean state.
-  return <GenreBody key={id} id={id} />;
+  const lang = useI18n((s) => s.lang);
+  // Keyed, so switching genres (or languages: names and artists come from YouTube in it) starts clean.
+  return <GenreBody key={`${lang}:${id}`} id={id} lang={lang} />;
 }
 
 interface MoreArtists {
@@ -24,16 +27,18 @@ interface MoreArtists {
   hasMore: boolean;
 }
 
-// Artists added with "Carregar mais", kept per genre: coming back from an artist shows the same long list.
+// Artists added with "Load more", kept per genre and language: coming back from an artist shows the same long list.
 const moreMemo = new Map<string, MoreArtists>();
 
-function GenreBody({ id }: { id: string }) {
+function GenreBody({ id, lang }: { id: string; lang: Lang }) {
   const location = useLocation();
   const [params, setParams] = useSearchParams();
-  const view: View = params.get("ver") === "musicas" ? "tracks" : "artists";
-  const page = useRemote<GenrePage>(`genre:${id}`, (signal) => api.genre(id, signal));
-  const name = (page.status === "ok" && page.data.name) || (location.state as { name?: string } | null)?.name || "Gênero";
-  const [more, setMore] = useState<MoreArtists | undefined>(() => moreMemo.get(id));
+  const view: View = params.get("view") === "songs" ? "tracks" : "artists";
+  const t = useT();
+  const page = useRemote<GenrePage>(`genre:${lang}:${id}`, (signal) => api.genre(id, signal));
+  const name = (page.status === "ok" && page.data.name) || (location.state as { name?: string } | null)?.name || t.genre.fallbackName;
+  const memoKey = `${lang}:${id}`;
+  const [more, setMore] = useState<MoreArtists | undefined>(() => moreMemo.get(memoKey));
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState("");
 
@@ -47,7 +52,7 @@ function GenreBody({ id }: { id: string }) {
       const next = await api.genreArtists(id, artists.length);
       const known = new Set(artists.map((a) => a.id));
       const merged = { artists: [...(more?.artists ?? []), ...next.artists.filter((a) => !known.has(a.id))], hasMore: next.hasMore };
-      moreMemo.set(id, merged);
+      moreMemo.set(memoKey, merged);
       setMore(merged);
     } catch (e) {
       setMoreError((e as Error).message);
@@ -61,7 +66,7 @@ function GenreBody({ id }: { id: string }) {
       type="button"
       role="tab"
       aria-selected={view === v}
-      onClick={() => setParams(v === "tracks" ? { ver: "musicas" } : {}, { replace: true, state: location.state })}
+      onClick={() => setParams(v === "tracks" ? { view: "songs" } : {}, { replace: true, state: location.state })}
       className={cn(
         "h-9 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors duration-200",
         view === v ? "bg-fg text-bg" : "bg-surface-3 text-fg-2 hover:text-fg",
@@ -74,11 +79,11 @@ function GenreBody({ id }: { id: string }) {
 
   return (
     <div className="pb-8">
-      <PageHeader title={name} actions={<BackButton fallback="/buscar" />} />
+      <PageHeader title={name} actions={<BackButton fallback={paths.search} />} />
 
-      <div role="tablist" aria-label="Ver por" className="flex gap-2 px-4 pt-1 pb-4 md:px-6">
-        {tab("artists", <Short phone="Artistas" wide="Bandas e artistas" />, page.status === "ok" ? `${artists.length}${hasMore ? "+" : ""}` : undefined)}
-        {tab("tracks", <Short phone="Músicas" wide="Todas as músicas" />, page.status === "ok" ? page.data.tracks.length : undefined)}
+      <div role="tablist" aria-label={t.genre.viewBy} className="flex gap-2 px-4 pt-1 pb-4 md:px-6">
+        {tab("artists", <Short phone={t.genre.artistsShort} wide={t.genre.artistsTab} />, page.status === "ok" ? `${artists.length}${hasMore ? "+" : ""}` : undefined)}
+        {tab("tracks", <Short phone={t.genre.songsShort} wide={t.genre.songsTab} />, page.status === "ok" ? page.data.tracks.length : undefined)}
       </div>
 
       {page.status === "loading" && (view === "artists" ? <ArtistGridSkeleton /> : <TrackListSkeleton />)}
@@ -86,7 +91,7 @@ function GenreBody({ id }: { id: string }) {
       {page.status === "error" && (
         <EmptyState
           icon={<WarningCircleIcon size={28} />}
-          title="Não deu para abrir este gênero"
+          title={t.genre.openFailed}
           body={page.message}
           action={
             <button
@@ -94,7 +99,7 @@ function GenreBody({ id }: { id: string }) {
               onClick={page.retry}
               className="mt-2 h-11 rounded-full bg-surface-3 px-6 text-sm font-medium hover:bg-surface-4"
             >
-              Tentar de novo
+              {t.common.retry}
             </button>
           }
         />
@@ -103,11 +108,11 @@ function GenreBody({ id }: { id: string }) {
       {page.status === "ok" && view === "artists" && (
         artists.length ? (
           <>
-            <p className="px-4 pb-3 text-sm text-fg-2 md:px-6">Escolha uma banda ou artista para ver os maiores sucessos.</p>
+            <p className="px-4 pb-3 text-sm text-fg-2 md:px-6">{t.genre.pickArtist}</p>
             <ul className="grid grid-cols-2 gap-x-3 gap-y-5 px-4 sm:grid-cols-3 md:px-6 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
               {artists.map((a) => (
                 <li key={a.id}>
-                  <Link to={`/buscar/artista/${a.id}`} state={{ name: a.name }} className="group flex flex-col gap-2">
+                  <Link to={paths.artist(a.id)} state={{ name: a.name }} className="group flex flex-col gap-2">
                     <span className="block overflow-hidden rounded-[14px]">
                       <Artwork
                         src={a.art}
@@ -134,15 +139,15 @@ function GenreBody({ id }: { id: string }) {
                 >
                   {loadingMore ? (
                     <>
-                      <CircleNotchIcon size={18} className="animate-spin" /> Procurando mais artistas…
+                      <CircleNotchIcon size={18} className="animate-spin" /> {t.genre.loadingMore}
                     </>
                   ) : (
-                    "Carregar mais"
+                    t.genre.loadMore
                   )}
                 </button>
               ) : (
                 artists.length > page.data.artists.length && (
-                  <p className="text-sm text-fg-3">Fim da lista: {plural(artists.length, "artista", "artistas")}</p>
+                  <p className="text-sm text-fg-3">{t.genre.endOfList(artists.length)}</p>
                 )
               )}
               {moreError && (
@@ -155,8 +160,8 @@ function GenreBody({ id }: { id: string }) {
         ) : (
           <EmptyState
             icon={<MusicNotesIcon size={28} />}
-            title="Nenhum artista listado"
-            body="Este gênero só tem playlists. Veja todas as músicas na outra aba."
+            title={t.genre.noArtists}
+            body={t.genre.noArtistsBody}
           />
         )
       )}
@@ -165,7 +170,7 @@ function GenreBody({ id }: { id: string }) {
         page.data.tracks.length ? (
           <SelectableTrackList key={id} tracks={page.data.tracks} />
         ) : (
-          <EmptyState icon={<MusicNotesIcon size={28} />} title="Nenhuma música listada" body="Tente outro gênero." />
+          <EmptyState icon={<MusicNotesIcon size={28} />} title={t.genre.noSongs} body={t.genre.noSongsBody} />
         )
       )}
     </div>
@@ -173,8 +178,9 @@ function GenreBody({ id }: { id: string }) {
 }
 
 function ArtistGridSkeleton() {
+  const t = useT();
   return (
-    <ul aria-label="Carregando" className="grid grid-cols-2 gap-x-3 gap-y-5 px-4 sm:grid-cols-3 md:px-6 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+    <ul aria-label={t.common.loading} className="grid grid-cols-2 gap-x-3 gap-y-5 px-4 sm:grid-cols-3 md:px-6 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
       {Array.from({ length: 12 }, (_, i) => (
         <li key={i} className="flex flex-col gap-2">
           <span className="skeleton aspect-square w-full rounded-[14px]" />

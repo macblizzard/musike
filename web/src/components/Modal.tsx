@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MD, useMediaQuery } from "../hooks/useMediaQuery";
+import { useT } from "../i18n";
 import { IconButton } from "./IconButton";
 
 /**
@@ -19,6 +20,7 @@ interface Props {
 export function Modal({ open, onClose, title, children }: Props) {
   const isMd = useMediaQuery(MD);
   const reduce = useReducedMotion();
+  const t = useT();
 
   useEffect(() => {
     if (!open) return;
@@ -53,7 +55,7 @@ export function Modal({ open, onClose, title, children }: Props) {
             <div className="island-core p-4 md:p-5">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-                <IconButton label="Fechar" size="sm" onClick={onClose}>
+                <IconButton label={t.common.close} size="sm" onClick={onClose}>
                   <XIcon size={18} />
                 </IconButton>
               </div>

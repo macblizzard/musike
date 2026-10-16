@@ -9,7 +9,9 @@ import {
 } from "@phosphor-icons/react";
 import { useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router";
-import { cn, plural } from "../lib/format";
+import { useT } from "../i18n";
+import { cn } from "../lib/format";
+import { paths } from "../lib/routes";
 import { useLibrary } from "../stores/library";
 import { needsAttention, useSystem } from "../stores/system";
 import { useUi } from "../stores/ui";
@@ -18,13 +20,14 @@ import { Logo, LogoMark } from "./Brand";
 import { NamePlaylistDialog } from "./Dialogs";
 
 const nav = [
-  { to: "/", label: "Início", Icon: HouseIcon, end: true },
-  { to: "/buscar", label: "Buscar", Icon: MagnifyingGlassIcon, end: false },
-  { to: "/biblioteca", label: "Biblioteca", Icon: BooksIcon, end: false },
-];
+  { to: paths.home, key: "home", Icon: HouseIcon, end: true },
+  { to: paths.search, key: "search", Icon: MagnifyingGlassIcon, end: false },
+  { to: paths.library, key: "library", Icon: BooksIcon, end: false },
+] as const;
 
-/** Settings entry. Shows a dot (and on the wide rail, an "Atualizar" pill) when yt-dlp needs attention. */
+/** Settings entry. Shows a dot (and on the wide rail, an "Update" pill) when yt-dlp needs attention. */
 function SettingsButton() {
+  const t = useT();
   const info = useSystem((s) => s.info);
   const setOpen = useUi((s) => s.setSettingsOpen);
   const attention = needsAttention(info);
@@ -33,17 +36,17 @@ function SettingsButton() {
     <button
       type="button"
       onClick={() => setOpen(true)}
-      aria-label={attention ? "Ajustes (atenção necessária)" : "Ajustes"}
-      title="Ajustes"
+      aria-label={attention ? t.nav.settingsAttention : t.nav.settings}
+      title={t.nav.settings}
       className="relative flex h-10 w-full items-center justify-center gap-2 rounded-full px-3 text-sm text-fg-2 transition-colors hover:bg-surface-3 hover:text-fg xl:justify-start"
     >
       <GearSixIcon size={19} />
-      <span className="hidden flex-1 text-left xl:inline">Ajustes</span>
+      <span className="hidden flex-1 text-left xl:inline">{t.nav.settings}</span>
       {attention && (
         <>
           <span className="absolute top-2 right-[calc(50%-14px)] size-2 rounded-full bg-accent ring-2 ring-surface-2 xl:hidden" />
           <span className="hidden rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-text xl:inline">
-            {updatable ? "Atualizar" : "Verificar"}
+            {updatable ? t.nav.updatePill : t.nav.checkPill}
           </span>
         </>
       )}
@@ -89,6 +92,7 @@ function RailLink({ to, label, sub, end, children }: { to: string; label: string
 }
 
 export function Rail() {
+  const t = useT();
   const playlists = useLibrary((s) => s.playlists);
   const favorites = useLibrary((s) => s.favorites);
   const createPlaylist = useLibrary((s) => s.createPlaylist);
@@ -105,13 +109,13 @@ export function Rail() {
           </span>
         </div>
 
-        <nav aria-label="Navegação principal" className="flex flex-col gap-1 px-2">
-          {nav.map(({ to, label, Icon, end }) => (
+        <nav aria-label={t.nav.main} className="flex flex-col gap-1 px-2">
+          {nav.map(({ to, key, Icon, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
-              title={label}
+              title={t.nav[key]}
               className={({ isActive }) =>
                 cn(
                   "flex h-11 items-center justify-center gap-3 rounded-full transition-colors duration-200 xl:justify-start xl:px-4",
@@ -122,7 +126,7 @@ export function Rail() {
               {({ isActive }) => (
                 <>
                   <Icon size={22} weight={isActive ? "fill" : "regular"} />
-                  <span className="hidden text-sm font-medium xl:inline">{label}</span>
+                  <span className="hidden text-sm font-medium xl:inline">{t.nav[key]}</span>
                 </>
               )}
             </NavLink>
@@ -132,12 +136,12 @@ export function Rail() {
         <div className="mx-4 my-3 h-px bg-line" />
 
         <div className="flex items-center justify-between px-4 pb-1">
-          <span className="hidden text-xs font-medium text-fg-3 xl:block">Sua coleção</span>
+          <span className="hidden text-xs font-medium text-fg-3 xl:block">{t.nav.yourCollection}</span>
           <button
             type="button"
             onClick={() => setCreating(true)}
-            aria-label="Nova playlist"
-            title="Nova playlist"
+            aria-label={t.nav.newPlaylist}
+            title={t.nav.newPlaylist}
             className="mx-auto grid size-8 place-items-center rounded-full text-fg-2 transition-colors hover:bg-surface-3 hover:text-fg xl:mx-0"
           >
             <PlusIcon size={18} />
@@ -145,18 +149,18 @@ export function Rail() {
         </div>
 
         <div className="scroll-area flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2">
-          <RailLink to="/favoritas" label="Favoritas" sub={plural(favorites.length, "faixa", "faixas")}>
+          <RailLink to={paths.favorites} label={t.nav.favorites} sub={t.common.tracks(favorites.length)}>
             <span className="grid size-full place-items-center bg-accent-soft text-accent-text">
               <HeartIcon size={20} weight="fill" />
             </span>
           </RailLink>
-          <RailLink to="/historico" label="Tocadas recentemente" sub="Histórico">
+          <RailLink to={paths.history} label={t.nav.recentlyPlayed} sub={t.nav.history}>
             <span className="grid size-full place-items-center bg-surface-3 text-fg-2">
               <ClockCounterClockwiseIcon size={20} />
             </span>
           </RailLink>
           {playlists.map((p) => (
-            <RailLink key={p.id} to={`/playlist/${p.id}`} label={p.name} sub={plural(p.tracks.length, "faixa", "faixas")}>
+            <RailLink key={p.id} to={paths.playlist(p.id)} label={p.name} sub={t.common.tracks(p.tracks.length)}>
               <Artwork src={p.tracks[0]?.thumb} className="size-full" iconSize={18} />
             </RailLink>
           ))}
@@ -169,13 +173,13 @@ export function Rail() {
 
       <NamePlaylistDialog
         open={creating}
-        title="Nova playlist"
-        action="Criar"
+        title={t.nav.newPlaylist}
+        action={t.library.create}
         onClose={() => setCreating(false)}
         onSubmit={async (name) => {
           const p = await createPlaylist(name);
           setCreating(false);
-          if (p) navigate(`/playlist/${p.id}`);
+          if (p) navigate(paths.playlist(p.id));
         }}
       />
     </aside>

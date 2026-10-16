@@ -4,8 +4,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { createPortal } from "react-dom";
 import { create } from "zustand";
 import { MD, useMediaQuery } from "../hooks/useMediaQuery";
+import { useT } from "../i18n";
 import { cn } from "../lib/format";
-import { selectCurrent, usePlayer, videoEl } from "../player/player";
+import { selectCurrent, usePlayer, useStatusText, videoEl } from "../player/player";
 import { useUi } from "../stores/ui";
 import { FavoriteButton, Scrubber, Transport, Volume } from "./Controls";
 import { IconButton } from "./IconButton";
@@ -49,6 +50,7 @@ export function VideoSlot({
   /** Offer a "maximize" button (and double-click) that opens the cinema view. */
   expandable?: boolean;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const id = ++seq;
@@ -71,8 +73,8 @@ export function VideoSlot({
         <button
           type="button"
           onClick={openTheater}
-          aria-label="Maximizar vídeo"
-          title="Maximizar (F)"
+          aria-label={t.video.maximize}
+          title={t.video.maximizeKey}
           className="absolute top-2 right-2 grid size-9 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm transition-[opacity,transform] duration-200 active:scale-90 md:opacity-0 md:group-hover/video:opacity-100 md:focus-visible:opacity-100"
         >
           <ArrowsOutIcon size={18} />
@@ -86,6 +88,7 @@ export function VideoSlot({
 export function FloatingVideo() {
   const isVideo = usePlayer((s) => s.mediaKind === "video" && s.queue.length > 0);
   const top = useSlots((s) => s.top);
+  const t = useT();
   const isMd = useMediaQuery(MD);
   const show = isVideo && top < SLOT.panel;
 
@@ -108,7 +111,7 @@ export function FloatingVideo() {
           <button
             type="button"
             onClick={openTheater}
-            aria-label="Maximizar vídeo"
+            aria-label={t.video.maximize}
             className="absolute inset-0 grid place-items-end p-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
           >
             <span className="grid size-8 place-items-center rounded-full bg-black/60 text-white backdrop-blur-sm">
@@ -134,8 +137,9 @@ export function Theater() {
   const playing = usePlayer((s) => s.status === "playing");
   const toggle = usePlayer((s) => s.toggle);
   const track = usePlayer(selectCurrent);
-  const statusText = usePlayer((s) => s.statusText);
+  const statusText = useStatusText();
   const reduce = useReducedMotion();
+  const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const idle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [chrome, setChrome] = useState(true);
@@ -205,7 +209,7 @@ export function Theater() {
           ref={box}
           role="dialog"
           aria-modal="true"
-          aria-label={`Vídeo: ${track.title}`}
+          aria-label={t.video.label(track.title)}
           initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.97 }}
@@ -231,13 +235,13 @@ export function Theater() {
                 <p className="truncate text-sm text-white/70">{statusText ?? track.artist}</p>
               </div>
               <IconButton
-                label={fullscreen ? "Sair da tela cheia" : "Tela cheia"}
+                label={fullscreen ? t.video.exitFullscreen : t.video.fullscreen}
                 onClick={toggleFullscreen}
                 className="text-white/85 hover:bg-white/15 hover:text-white"
               >
                 {fullscreen ? <CornersInIcon size={22} /> : <CornersOutIcon size={22} />}
               </IconButton>
-              <IconButton label="Fechar vídeo (Esc)" onClick={close} className="text-white/85 hover:bg-white/15 hover:text-white">
+              <IconButton label={t.video.close} onClick={close} className="text-white/85 hover:bg-white/15 hover:text-white">
                 {fullscreen ? <ArrowsInIcon size={22} /> : <XIcon size={22} />}
               </IconButton>
             </div>

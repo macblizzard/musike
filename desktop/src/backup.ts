@@ -24,9 +24,9 @@ export function backupLibraryOnUpdate(userData: string, version: string, now = n
     if (existsSync(library)) {
       const dir = path.join(userData, "backups");
       mkdirSync(dir, { recursive: true });
-      // Sortable by name: library-2026-10-13_14-05-00-antes-da-1.1.0.json
+      // Sortable by name: library-2026-10-15_14-05-00-before-1.2.0.json
       const stamp = now.toISOString().slice(0, 19).replace("T", "_").replaceAll(":", "-");
-      made = path.join(dir, `library-${stamp}-antes-da-${version}.json`);
+      made = path.join(dir, `library-${stamp}-before-${version}.json`);
       copyFileSync(library, made);
       const dated = readdirSync(dir)
         .filter((f) => /^library-\d{4}-\d\d-\d\d_/.test(f))

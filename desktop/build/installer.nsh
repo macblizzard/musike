@@ -10,7 +10,7 @@
   ReadEnvStr $R0 APPDATA
   IfFileExists "$R0\Musike\data\library.json" 0 musike_no_library
     CreateDirectory "$R0\Musike\backups"
-    CopyFiles /SILENT "$R0\Musike\data\library.json" "$R0\Musike\backups\library-antes-de-instalar-${VERSION}.json"
+    CopyFiles /SILENT "$R0\Musike\data\library.json" "$R0\Musike\backups\library-before-install-${VERSION}.json"
   musike_no_library:
   Pop $R0
 !macroend

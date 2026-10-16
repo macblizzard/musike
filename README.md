@@ -68,6 +68,7 @@ O Musike nasceu da ideia dos antigos bots de música do Discord: um servidor que
 - **Backup em arquivo** para levar tudo a outra instância: juntar ou substituir, com prévia antes de importar
 
 **Interface**
+- **Em inglês por padrão, com troca de idioma em Ajustes > Language** (English e Português do Brasil). A escolha vale por aparelho e traduz também as mensagens do servidor e os nomes de gêneros e biografias que vêm do YouTube Music
 - Tema escuro e claro, layout responsivo do celular de 320 px ao monitor ultrawide
 - Controles na tela de bloqueio, fones e teclas de mídia (Media Session)
 - Retoma a fila e a posição de onde você parou
@@ -159,7 +160,7 @@ Na primeira abertura, uma tela mostra o download das ferramentas oficiais: **yt-
 | `cache` | vídeos HD já baixados |
 | `backups` | cópias da biblioteca feitas a cada atualização |
 
-**Atualizar é só instalar a versão nova por cima.** A pasta `%APPDATA%\Musike` fica fora da pasta do programa e nem a atualização nem a desinstalação a apagam. Por segurança, antes de trocar a versão o instalador ainda copia a biblioteca para `backups\library-antes-de-instalar-<versão>.json`, e o app guarda outra cópia datada na primeira abertura de cada versão (mantém as 5 mais recentes). Para restaurar uma delas, feche o Musike e copie o arquivo por cima de `data\library.json`.
+**Atualizar é só instalar a versão nova por cima.** A pasta `%APPDATA%\Musike` fica fora da pasta do programa e nem a atualização nem a desinstalação a apagam. Por segurança, antes de trocar a versão o instalador ainda copia a biblioteca para `backups\library-before-install-<versão>.json`, e o app guarda outra cópia datada na primeira abertura de cada versão (mantém as 5 mais recentes). Para restaurar uma delas, feche o Musike e copie o arquivo por cima de `data\library.json`.
 
 > O instalador não é assinado digitalmente. Na primeira execução o Windows mostra "O Windows protegeu o computador": clique em **Mais informações** e depois **Executar assim mesmo**.
 
@@ -255,7 +256,7 @@ Variáveis de ambiente do servidor (todas opcionais):
 | `MUSIKE_CACHE_DIR` | `server/cache` | Vídeos HD baixados |
 | `MUSIKE_CACHE_MAX_MB` | `2048` | Limite do cache de vídeo (apaga os menos tocados) |
 | `MUSIKE_BIN_DIR` | | Pasta privada de ferramentas (o app desktop usa `%APPDATA%\Musike\bin`) |
-| `MUSIKE_LANG` / `MUSIKE_LOCATION` | `pt` / `BR` | Idioma e região da busca |
+| `MUSIKE_LANG` / `MUSIKE_LOCATION` | `en` / `BR` | Idioma do YouTube Music quando a requisição não informa um (o app sempre informa o idioma escolhido) e região da busca |
 
 ## API
 

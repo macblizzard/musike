@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { Route, Routes, useLocation, useNavigate, useNavigationType } from "react-router";
+import { Navigate, Route, Routes, useLocation, useNavigate, useNavigationType } from "react-router";
 import { AddToPlaylistDialog, ShortcutsDialog } from "./components/Dialogs";
 import { MiniPlayer, TabBar } from "./components/MobileChrome";
 import { NowPlayingSheet, PanelDrawer, SidePanel } from "./components/NowPlaying";
@@ -13,7 +13,9 @@ import { TrackMenu } from "./components/TrackMenu";
 import { FloatingVideo, Theater } from "./components/Video";
 import { MD, useMediaQuery } from "./hooks/useMediaQuery";
 import { useShortcuts } from "./hooks/useShortcuts";
+import { getT } from "./i18n";
 import { cn } from "./lib/format";
+import { legacyRedirect, NOW_PLAYING_HASH, paths } from "./lib/routes";
 import { usePlayer } from "./player/player";
 import { useLibrary } from "./stores/library";
 import { openSettings, useSystem } from "./stores/system";
@@ -26,10 +28,11 @@ import Home from "./views/Home";
 import Library from "./views/Library";
 import Search from "./views/Search";
 
-const SHEET_HASH = "#tocando";
+const SHEET_HASH = `#${NOW_PLAYING_HASH}`;
 
 export default function App() {
   const location = useLocation();
+  const legacy = legacyRedirect(location.pathname, location.search, location.hash);
   const navigate = useNavigate();
   const navigationType = useNavigationType();
   const isMd = useMediaQuery(MD);
@@ -51,8 +54,9 @@ export default function App() {
       await loadSystem();
       const info = useSystem.getState().info;
       if (!info) return;
+      const t = getT();
       if (!info.ytdlp.path) {
-        toast("O yt-dlp não foi encontrado. Sem ele nenhuma música toca.", "error", { label: "Instalar", run: openSettings });
+        toast(t.toasts.ytdlpMissing, "error", { label: t.common.install, run: openSettings });
         return;
       }
       const latest = info.ytdlp.latest[info.ytdlp.channel];
@@ -63,7 +67,7 @@ export default function App() {
         } catch {
           /* private mode */
         }
-        toast(`Nova versão do yt-dlp disponível (${latest})`, "info", { label: "Atualizar", run: openSettings });
+        toast(t.toasts.ytdlpUpdate(latest), "info", { label: t.common.update, run: openSettings });
       }
     }, 1500);
     return () => clearTimeout(t);
@@ -111,18 +115,22 @@ export default function App() {
             "md:pb-0",
           )}
         >
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/buscar" element={<Search />} />
-            <Route path="/buscar/lista" element={<BatchSearch />} />
-            <Route path="/buscar/genero/:id" element={<Genre />} />
-            <Route path="/buscar/artista/:id" element={<Artist />} />
-            <Route path="/biblioteca" element={<Library />} />
-            <Route path="/favoritas" element={<Collection kind="favorites" />} />
-            <Route path="/historico" element={<Collection kind="history" />} />
-            <Route path="/playlist/:id" element={<Collection kind="playlist" />} />
-            <Route path="*" element={<Home />} />
-          </Routes>
+          {legacy ? (
+            <Navigate to={legacy} replace />
+          ) : (
+            <Routes>
+              <Route path={paths.home} element={<Home />} />
+              <Route path={paths.search} element={<Search />} />
+              <Route path={paths.searchList} element={<BatchSearch />} />
+              <Route path="/search/genre/:id" element={<Genre />} />
+              <Route path="/search/artist/:id" element={<Artist />} />
+              <Route path={paths.library} element={<Library />} />
+              <Route path={paths.favorites} element={<Collection kind="favorites" />} />
+              <Route path={paths.history} element={<Collection kind="history" />} />
+              <Route path="/playlist/:id" element={<Collection kind="playlist" />} />
+              <Route path="*" element={<Home />} />
+            </Routes>
+          )}
         </main>
         {panelOpen && hasTrack && <SidePanel />}
       </div>

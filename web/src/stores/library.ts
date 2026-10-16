@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { getT } from "../i18n";
 import { api } from "../lib/api";
 import type { Library, Playlist, Track } from "../lib/types";
 import { toast } from "./ui";
@@ -45,7 +46,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     try {
       const { favorites } = on ? await api.addFavorite(track) : await api.removeFavorite(track.id);
       set({ favorites });
-      toast(on ? "Adicionada às Favoritas" : "Removida das Favoritas");
+      toast(on ? getT().toasts.addedFavorite : getT().toasts.removedFavorite);
     } catch (e) {
       set({ favorites: prev });
       toast((e as Error).message, "error");
@@ -55,12 +56,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   addFavorites: async (tracks) => {
     const prev = get().favorites;
     const fresh = tracks.filter((t) => !prev.some((f) => f.id === t.id));
-    if (!fresh.length) return toast("Já estavam todas nas Favoritas");
+    if (!fresh.length) return toast(getT().toasts.allAlreadyFavorites);
     set({ favorites: [...fresh, ...prev] });
     try {
       const { favorites } = await api.addFavorites(fresh);
       set({ favorites });
-      toast(fresh.length === 1 ? "Adicionada às Favoritas" : `${fresh.length} faixas adicionadas às Favoritas`);
+      toast(fresh.length === 1 ? getT().toasts.addedFavorite : getT().toasts.addedFavorites(fresh.length));
     } catch (e) {
       set({ favorites: prev });
       toast((e as Error).message, "error");
@@ -76,7 +77,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     try {
       const p = await api.createPlaylist(name, tracks);
       set((s) => ({ playlists: [p, ...s.playlists] }));
-      toast(`Playlist "${p.name}" criada`);
+      toast(getT().toasts.playlistCreated(p.name));
       return p;
     } catch (e) {
       toast((e as Error).message, "error");
@@ -98,7 +99,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set({ playlists: prev.filter((p) => p.id !== id) });
     try {
       await api.deletePlaylist(id);
-      toast("Playlist excluída");
+      toast(getT().toasts.playlistDeleted);
     } catch (e) {
       set({ playlists: prev });
       toast((e as Error).message, "error");
@@ -111,8 +112,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const p = await api.addToPlaylist(id, tracks);
       set((s) => ({ playlists: replacePlaylist(s.playlists, p) }));
       const added = p.tracks.length - before;
-      if (!Array.isArray(tracks) || added === 1) toast(`Adicionada a "${p.name}"`);
-      else toast(added ? `${added} faixas adicionadas a "${p.name}"` : `Já estavam todas em "${p.name}"`);
+      const t = getT();
+      if (!Array.isArray(tracks) || added === 1) toast(t.toasts.addedTo(p.name));
+      else toast(added ? t.toasts.addedManyTo(added, p.name) : t.toasts.allAlreadyIn(p.name));
     } catch (e) {
       toast((e as Error).message, "error");
     }

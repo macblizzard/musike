@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MD, useMediaQuery } from "../hooks/useMediaQuery";
+import { useT } from "../i18n";
 import { cn } from "../lib/format";
 import { usePlayer } from "../player/player";
 import { useLibrary } from "../stores/library";
@@ -43,6 +44,7 @@ export function TrackMenu() {
   const isFavorite = useLibrary((s) => (menu ? s.favorites.some((t) => t.id === menu.track.id) : false));
   const isMd = useMediaQuery(MD);
   const box = useRef<HTMLDivElement>(null);
+  const t = useT();
   const [pos, setPos] = useState({ left: 0, top: 0 });
 
   useLayoutEffect(() => {
@@ -71,28 +73,28 @@ export function TrackMenu() {
   };
 
   const content = menu && (
-    <div role="menu" aria-label={`Ações para ${menu.track.title}`} className="flex flex-col">
+    <div role="menu" aria-label={t.trackMenu.actionsFor(menu.track.title)} className="flex flex-col">
       <Item icon={<PlayIcon size={18} />} onClick={run(() => usePlayer.getState().playTrack(menu.track))}>
-        Tocar agora
+        {t.trackMenu.playNow}
       </Item>
       <Item icon={<QueueIcon size={18} />} onClick={run(() => usePlayer.getState().playNext(menu.track))}>
-        Tocar a seguir
+        {t.trackMenu.playNext}
       </Item>
       <Item icon={<ListPlusIcon size={18} />} onClick={run(() => usePlayer.getState().addToQueue(menu.track))}>
-        Adicionar à fila
+        {t.trackMenu.addToQueue}
       </Item>
       <Item icon={<RadioIcon size={18} />} onClick={run(() => void usePlayer.getState().startRadio(menu.track))}>
-        Iniciar rádio
+        {t.trackMenu.startRadio}
       </Item>
       <div className="mx-3 my-1 h-px bg-line" />
       <Item
         icon={<HeartIcon size={18} weight={isFavorite ? "fill" : "regular"} className={isFavorite ? "text-accent-text" : ""} />}
         onClick={run(() => void useLibrary.getState().toggleFavorite(menu.track))}
       >
-        {isFavorite ? "Remover das Favoritas" : "Adicionar às Favoritas"}
+        {isFavorite ? t.common.removeFromFavorites : t.common.addToFavorites}
       </Item>
       <Item icon={<PlaylistIcon size={18} />} onClick={() => openAddToPlaylist([menu.track])}>
-        Adicionar à playlist
+        {t.trackMenu.addToPlaylist}
       </Item>
       {menu.playlistId && (
         <Item
@@ -100,7 +102,7 @@ export function TrackMenu() {
           icon={<TrashIcon size={18} />}
           onClick={run(() => void useLibrary.getState().removeFromPlaylist(menu.playlistId!, menu.track.id))}
         >
-          Remover desta playlist
+          {t.trackMenu.removeFromPlaylist}
         </Item>
       )}
       <div className="mx-3 my-1 h-px bg-line" />
@@ -108,7 +110,7 @@ export function TrackMenu() {
         icon={<ArrowSquareOutIcon size={18} />}
         onClick={run(() => window.open(`https://www.youtube.com/watch?v=${menu.track.id}`, "_blank", "noopener"))}
       >
-        Abrir no YouTube
+        {t.trackMenu.openYoutube}
       </Item>
     </div>
   );

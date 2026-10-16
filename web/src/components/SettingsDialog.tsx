@@ -4,9 +4,11 @@ import {
   DownloadSimpleIcon,
   MoonIcon,
   SunIcon,
+  TranslateIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { LANGUAGES, useI18n, useT, type Lang } from "../i18n";
 import type { Channel } from "../lib/api";
 import { cn } from "../lib/format";
 import { useSystem } from "../stores/system";
@@ -47,6 +49,7 @@ function Segmented<T extends string>({
 }
 
 function Dependency({ name, role, path, fix }: { name: string; role: string; path: string | null; fix: string }) {
+  const t = useT();
   return (
     <li className="flex items-center gap-3 py-2.5" title={path ?? undefined}>
       {path ? (
@@ -61,7 +64,7 @@ function Dependency({ name, role, path, fix }: { name: string; role: string; pat
             role
           ) : (
             <>
-              Não encontrado. No terminal: <code className="font-mono text-fg">{fix}</code> e reinicie o Musike.
+              {t.settings.depMissingBefore} <code className="font-mono text-fg">{fix}</code> {t.settings.depMissingAfter}
             </>
           )}
         </span>
@@ -78,6 +81,9 @@ export function SettingsDialog() {
   const { info, status, load, update } = useSystem();
   const [channel, setChannel] = useState<Channel>("stable");
   const logBox = useRef<HTMLPreElement>(null);
+  const t = useT();
+  const lang = useI18n((s) => s.lang);
+  const setLang = useI18n((s) => s.setLang);
 
   useEffect(() => {
     if (open) void load();
@@ -100,74 +106,86 @@ export function SettingsDialog() {
   const target = y?.latest[channel];
 
   let action: string;
-  if (running) action = job?.kind === "install" ? "Instalando" : "Atualizando";
-  else if (missing) action = "Instalar yt-dlp";
-  else if (switching) action = channel === "nightly" ? "Mudar para Nightly" : "Voltar para Estável";
-  else if (y?.updateAvailable && target) action = `Atualizar para ${target}`;
-  else action = "Verificar e atualizar";
+  if (running) action = job?.kind === "install" ? t.settings.installing : t.settings.updating;
+  else if (missing) action = t.settings.install;
+  else if (switching) action = channel === "nightly" ? t.settings.toNightly : t.settings.toStable;
+  else if (y?.updateAvailable && target) action = t.settings.updateTo(target);
+  else action = t.settings.check;
 
   const chip = !info ? null : missing ? (
-    <span className="rounded-full bg-danger/15 px-2.5 py-1 text-xs font-medium text-danger">Não encontrado</span>
+    <span className="rounded-full bg-danger/15 px-2.5 py-1 text-xs font-medium text-danger">{t.settings.chipMissing}</span>
   ) : y?.updateAvailable ? (
-    <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent-text">Atualização disponível</span>
+    <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent-text">{t.settings.chipUpdate}</span>
   ) : (
-    <span className="rounded-full bg-surface-3 px-2.5 py-1 text-xs font-medium text-fg-2">Atualizado</span>
+    <span className="rounded-full bg-surface-3 px-2.5 py-1 text-xs font-medium text-fg-2">{t.settings.chipOk}</span>
   );
 
   return (
-    <Modal open={open} onClose={() => setOpen(false)} title="Ajustes">
+    <Modal open={open} onClose={() => setOpen(false)} title={t.settings.title}>
       {/* Side padding keeps outset rings and the scrollbar from clipping the cards' edges. */}
       <div className="scroll-area -mx-2 flex max-h-[70dvh] flex-col gap-5 overflow-y-auto px-2 pb-1">
 
         <section className="flex flex-col gap-2">
-          <h3 className="text-xs font-medium text-fg-3">Aparência</h3>
+          <h3 className="text-xs font-medium text-fg-3">{t.settings.appearance}</h3>
           <Segmented
-            label="Tema"
+            label={t.settings.theme}
             value={theme}
             onChange={setTheme}
             options={[
-              ["dark", <><MoonIcon size={15} /> Escuro</>],
-              ["light", <><SunIcon size={15} /> Claro</>],
+              ["dark", <><MoonIcon size={15} /> {t.settings.dark}</>],
+              ["light", <><SunIcon size={15} /> {t.settings.light}</>],
             ]}
+          />
+        </section>
+
+        <section className="flex flex-col gap-2">
+          <h3 className="flex items-center gap-1.5 text-xs font-medium text-fg-3">
+            <TranslateIcon size={14} /> {t.settings.language}
+          </h3>
+          <Segmented
+            label={t.settings.language}
+            value={lang}
+            onChange={setLang}
+            options={LANGUAGES.map(({ id, name }): [Lang, ReactNode] => [id, <span lang={id}>{name}</span>])}
           />
         </section>
 
         <BackupSection />
 
         <section className="flex flex-col gap-3">
-          <h3 className="text-xs font-medium text-fg-3">Motor do YouTube</h3>
+          <h3 className="text-xs font-medium text-fg-3">{t.settings.engine}</h3>
 
           <div className="flex flex-col gap-4 rounded-[16px] bg-surface-1 p-4 ring-1 ring-line">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-semibold tracking-tight">yt-dlp</p>
                 <p className="font-mono text-[13px] text-fg-2 tabular-nums">
-                  {status === "loading" && !info ? "verificando" : y?.version ?? "sem versão"}
-                  {y?.version && <span className="text-fg-3"> · {y.channel === "nightly" ? "nightly" : "estável"}</span>}
+                  {status === "loading" && !info ? t.settings.checking : y?.version ?? t.settings.noVersion}
+                  {y?.version && <span className="text-fg-3"> · {y.channel === "nightly" ? t.settings.nightly : t.settings.stable}</span>}
                 </p>
               </div>
               {chip}
             </div>
 
             <p className="text-sm text-fg-2">
-              É quem busca o áudio e o vídeo no YouTube. O YouTube muda com frequência: se as músicas pararem de tocar, atualize aqui.
+              {t.settings.engineBody}
             </p>
 
             {!missing && (
               <div className="flex flex-col gap-1.5">
                 <Segmented
-                  label="Canal de atualização"
+                  label={t.settings.channel}
                   value={channel}
                   onChange={setChannel}
                   options={[
-                    ["stable", "Estável"],
-                    ["nightly", "Nightly"],
+                    ["stable", t.settings.stableOption],
+                    ["nightly", t.settings.nightlyOption],
                   ]}
                 />
                 <p className="px-1 text-xs text-fg-3">
                   {channel === "nightly"
-                    ? `Recebe correções no mesmo dia em que o YouTube muda.${y?.latest.nightly ? ` Última: ${y.latest.nightly}` : ""}`
-                    : `Versões testadas, lançadas a cada poucas semanas.${y?.latest.stable ? ` Última: ${y.latest.stable}` : ""}`}
+                    ? t.settings.nightlyBody + (y?.latest.nightly ? t.settings.latest(y.latest.nightly) : "")
+                    : t.settings.stableBody + (y?.latest.stable ? t.settings.latest(y.latest.stable) : "")}
                 </p>
               </div>
             )}
@@ -190,7 +208,7 @@ export function SettingsDialog() {
 
             {missing && info && !info.canInstall && (
               <p className="text-sm text-danger">
-                O winget não está disponível. Instale o yt-dlp manualmente e reinicie o Musike.
+                {t.settings.noWinget}
               </p>
             )}
 
@@ -206,7 +224,7 @@ export function SettingsDialog() {
                   aria-live="polite"
                   className="max-h-36 overflow-y-auto rounded-[10px] bg-bg p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-fg-2 scroll-area"
                 >
-                  {job.log.length ? job.log.join("\n") : "Iniciando"}
+                  {job.log.length ? job.log.join("\n") : t.settings.starting}
                 </pre>
               </div>
             )}
@@ -214,8 +232,8 @@ export function SettingsDialog() {
 
           {info && (
             <ul className="divide-y divide-line px-1">
-              <Dependency name="Deno" role="Resolve os desafios do YouTube" path={info.deno} fix="winget install DenoLand.Deno" />
-              <Dependency name="FFmpeg" role="Junta vídeo e áudio no modo HD" path={info.ffmpeg} fix="winget install yt-dlp.FFmpeg" />
+              <Dependency name="Deno" role={t.settings.denoRole} path={info.deno} fix="winget install DenoLand.Deno" />
+              <Dependency name="FFmpeg" role={t.settings.ffmpegRole} path={info.ffmpeg} fix="winget install yt-dlp.FFmpeg" />
             </ul>
           )}
         </section>

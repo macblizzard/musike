@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { getT, useT } from "../i18n";
 import { api, explainStreamError, streamUrl } from "../lib/api";
 import { shuffled } from "../lib/format";
 import type { Track } from "../lib/types";
@@ -7,6 +8,8 @@ import { openSettings } from "../stores/system";
 import { toast } from "../stores/ui";
 
 export type Repeat = "off" | "all" | "one";
+/** A code translated where it is shown (so switching languages updates it), or a server error already in the right language. */
+export type StatusNote = "findingClip" | "preparingHd" | "loadingVideo" | "fetchingRadio" | { error: string };
 export type Status = "idle" | "loading" | "playing" | "paused" | "error";
 type Kind = "audio" | "video";
 type Quality = "sd" | "hd";
@@ -17,11 +20,12 @@ interface PlayerState {
   original: Track[] | null;
   index: number;
   status: Status;
-  statusText: string | null;
+  /** What playback is busy with (or why it failed), shown instead of the artist. See `useStatusText`. */
+  statusText: StatusNote | null;
   /** Which media element is driving playback right now. */
   mediaKind: Kind;
   /** Set when Video mode is on but the current song has no music video on YouTube. */
-  videoNote: string | null;
+  videoNote: "noClip" | null;
   /** Intrinsic width/height of the current video, so vertical videos get a vertical stage. */
   videoAspect: number;
   position: number;
@@ -105,7 +109,6 @@ const saved = readSaved();
  */
 const clipFor = new Map<string, string | null>();
 const clipLookups = new Map<string, Promise<string | null>>();
-const NO_CLIP = "Esta música não tem clipe no YouTube";
 
 function lookupClip(track: Track): Promise<string | null> {
   if (track.kind === "video") return Promise.resolve(track.id);
@@ -138,7 +141,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
   const mediaIdFor = (track: Track, kind: Kind) =>
     kind === "video" && track.kind !== "video" ? clipFor.get(track.id)! : track.id;
   const noteFor = (track: Track) =>
-    get().preferVideo && track.kind === "song" && clipFor.get(track.id) === null ? NO_CLIP : null;
+    get().preferVideo && track.kind === "song" && clipFor.get(track.id) === null ? ("noClip" as const) : null;
   const activeMedia = (): HTMLMediaElement | null => (loaded ? mediaFor(loaded.kind) : null);
 
   function play(media: HTMLMediaElement) {
@@ -159,7 +162,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
       set({
         index,
         status: "loading",
-        statusText: "Procurando o clipe",
+        statusText: "findingClip",
         videoNote: null,
         position: opts.startAt ?? 0,
         duration: track.duration,
@@ -189,7 +192,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
       mediaKind: kind,
       status: autoplay ? "loading" : "paused",
       // Video may need a server-side download first (HD, or videos without a combined SD stream).
-      statusText: kind === "video" ? (s.quality === "hd" ? "Preparando vídeo HD" : "Carregando vídeo") : null,
+      statusText: kind === "video" ? (s.quality === "hd" ? "preparingHd" : "loadingVideo") : null,
       videoNote: noteFor(track),
       position: pendingSeek,
       duration: track.duration,
@@ -206,16 +209,16 @@ export const usePlayer = create<PlayerState>((set, get) => {
     const s = get();
     const last = s.queue[s.index];
     if (!last) return;
-    set({ status: "loading", statusText: "Buscando rádio" });
+    set({ status: "loading", statusText: "fetchingRadio" });
     try {
       const known = new Set(get().queue.map((t) => t.id));
       const more = (await api.radio(last.id)).filter((t) => !known.has(t.id)).slice(0, 25);
-      if (!more.length) throw new Error("vazio");
+      if (!more.length) throw new Error("empty");
       set((st) => ({
         queue: [...st.queue, ...more],
         original: st.original ? [...st.original, ...more] : null,
       }));
-      toast(`Continuando com o rádio de "${last.title}"`);
+      toast(getT().player.radioContinuing(last.title));
       load(get().index + 1);
     } catch {
       set({ status: "paused", statusText: null, position: 0 });
@@ -257,14 +260,15 @@ export const usePlayer = create<PlayerState>((set, get) => {
     set({ status: "error" });
     explainStreamError(url).then(({ message, code }) => {
       if (mine !== token) return;
-      set({ statusText: message });
+      set({ statusText: { error: message } });
       const track = get().queue[get().index];
       // Tool problems hit every track: offer the fix instead of skipping through the whole queue.
       const toolProblem = code === "tool_missing" || code === "maybe_outdated";
+      const t = getT();
       toast(
-        `Não foi possível tocar "${track?.title ?? "faixa"}". ${message}`,
+        t.player.cantPlay(track?.title ?? t.player.aTrack, message),
         "error",
-        toolProblem ? { label: code === "tool_missing" ? "Instalar" : "Atualizar", run: openSettings } : undefined,
+        toolProblem ? { label: code === "tool_missing" ? t.common.install : t.common.update, run: openSettings } : undefined,
       );
       if (code !== "tool_missing" && get().index < get().queue.length - 1) {
         setTimeout(() => mine === token && get().next(), 2500);
@@ -385,14 +389,14 @@ export const usePlayer = create<PlayerState>((set, get) => {
         queue: [...s.queue.slice(0, insert), track, ...s.queue.slice(insert)],
         original: s.original ? [...s.original, track] : null,
       });
-      toast(`"${track.title}" toca a seguir`);
+      toast(getT().player.playsNext(track.title));
     },
 
     addToQueue: (track) => {
       const s = get();
       if (!s.queue.length) return get().playList([track]);
       set({ queue: [...s.queue, track], original: s.original ? [...s.original, track] : null });
-      toast(`"${track.title}" adicionada à fila`);
+      toast(getT().player.addedToQueue(track.title));
     },
 
     removeAt: (i) => {
@@ -422,7 +426,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     },
 
     startRadio: async (track) => {
-      toast(`Montando rádio de "${track.title}"`);
+      toast(getT().player.startingRadio(track.title));
       try {
         const related = await api.radio(track.id);
         get().playList([track, ...related.filter((t) => t.id !== track.id)], 0);
@@ -612,4 +616,12 @@ if ("mediaSession" in navigator) {
   }
   const restored = selectCurrent(usePlayer.getState());
   if (restored) setMetadata(restored);
+}
+
+/** The player's status line in the current language, or null when there is nothing to say. */
+export function useStatusText(): string | null {
+  const note = usePlayer((s) => s.statusText);
+  const t = useT();
+  if (note === null) return null;
+  return typeof note === "string" ? t.player.status[note] : note.error;
 }

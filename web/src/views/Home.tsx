@@ -5,13 +5,15 @@ import { Artwork } from "../components/Artwork";
 import { LogoMark } from "../components/Brand";
 import { PageHeader, Section } from "../components/Page";
 import { TrackList, TrackListSkeleton } from "../components/TrackList";
-import { greeting } from "../lib/format";
+import { useT } from "../i18n";
+import { paths } from "../lib/routes";
 import type { Track } from "../lib/types";
 import { usePlayer } from "../player/player";
 import { useLibrary } from "../stores/library";
 
 function Shortcut({ to, label, tracks, cover }: { to: string; label: string; tracks: Track[]; cover: ReactNode }) {
   const playList = usePlayer((s) => s.playList);
+  const t = useT();
   return (
     <div className="group relative flex h-14 items-center gap-3 overflow-hidden rounded-[12px] bg-surface-2 pr-2 transition-colors hover:bg-surface-3 md:h-16">
       <Link to={to} className="absolute inset-0" aria-label={label} />
@@ -21,7 +23,7 @@ function Shortcut({ to, label, tracks, cover }: { to: string; label: string; tra
         <button
           type="button"
           onClick={() => playList(tracks, 0)}
-          aria-label={`Tocar ${label}`}
+          aria-label={t.common.playX(label)}
           className="relative z-10 hidden size-10 shrink-0 place-items-center rounded-full bg-accent text-accent-ink opacity-0 shadow-[0_6px_18px_rgb(0_0_0/0.35)] transition-[opacity,transform] duration-200 ease-out-expo group-hover:opacity-100 hover:scale-105 active:scale-95 md:grid"
         >
           <PlayIcon size={18} weight="fill" />
@@ -52,6 +54,7 @@ export default function Home() {
   const { favorites, playlists, history, status } = useLibrary();
   const playList = usePlayer((s) => s.playList);
   const navigate = useNavigate();
+  const t = useT();
   const empty = status === "ready" && !favorites.length && !playlists.length && !history.length;
 
   return (
@@ -59,7 +62,7 @@ export default function Home() {
       <PageHeader />
 
       <div className="px-4 pt-2 pb-6 md:px-6 md:pt-8">
-        <h1 className="text-[28px] leading-tight font-semibold tracking-tight md:text-4xl">{greeting()}</h1>
+        <h1 className="text-[28px] leading-tight font-semibold tracking-tight md:text-4xl">{t.time.greeting(new Date().getHours())}</h1>
       </div>
 
       {status === "loading" && <TrackListSkeleton rows={6} />}
@@ -70,17 +73,15 @@ export default function Home() {
             <LogoMark className="size-10" />
           </span>
           <div className="flex-1">
-            <p className="text-xl font-semibold tracking-tight">Comece pela busca</p>
-            <p className="mt-1 max-w-[52ch] text-sm text-fg-2">
-              Procure qualquer música ou clipe do YouTube. Toca como áudio ou vídeo, sem anúncios.
-            </p>
+            <p className="text-xl font-semibold tracking-tight">{t.home.startTitle}</p>
+            <p className="mt-1 max-w-[52ch] text-sm text-fg-2">{t.home.startBody}</p>
           </div>
           <button
             type="button"
-            onClick={() => navigate("/buscar")}
+            onClick={() => navigate(paths.search)}
             className="flex h-12 items-center gap-2 rounded-full bg-accent pr-6 pl-5 font-semibold text-accent-ink transition-transform active:scale-[0.97]"
           >
-            <MagnifyingGlassIcon size={20} weight="bold" /> Buscar música
+            <MagnifyingGlassIcon size={20} weight="bold" /> {t.common.searchMusic}
           </button>
         </div>
       )}
@@ -89,8 +90,8 @@ export default function Home() {
         <div className="flex flex-col gap-10">
           <div className="grid grid-cols-2 gap-2 px-4 md:px-6 lg:grid-cols-3 2xl:grid-cols-4">
             <Shortcut
-              to="/favoritas"
-              label="Favoritas"
+              to={paths.favorites}
+              label={t.nav.favorites}
               tracks={favorites}
               cover={
                 <span className="grid size-full place-items-center bg-accent-soft text-accent-text">
@@ -99,8 +100,8 @@ export default function Home() {
               }
             />
             <Shortcut
-              to="/historico"
-              label="Tocadas recentemente"
+              to={paths.history}
+              label={t.nav.recentlyPlayed}
               tracks={history}
               cover={
                 <span className="grid size-full place-items-center bg-surface-3 text-fg-2">
@@ -111,7 +112,7 @@ export default function Home() {
             {playlists.slice(0, 6).map((p) => (
               <Shortcut
                 key={p.id}
-                to={`/playlist/${p.id}`}
+                to={paths.playlist(p.id)}
                 label={p.name}
                 tracks={p.tracks}
                 cover={<Artwork src={p.tracks[0]?.thumb} className="size-full" />}
@@ -121,10 +122,10 @@ export default function Home() {
 
           {history.length > 0 && (
             <Section
-              title="Tocadas recentemente"
+              title={t.nav.recentlyPlayed}
               action={
-                <Link to="/historico" className="text-sm font-medium text-fg-2 hover:text-fg">
-                  Ver tudo
+                <Link to={paths.history} className="text-sm font-medium text-fg-2 hover:text-fg">
+                  {t.home.seeAll}
                 </Link>
               }
             >
@@ -138,10 +139,10 @@ export default function Home() {
 
           {favorites.length > 0 && (
             <Section
-              title="Suas favoritas"
+              title={t.home.yourFavorites}
               action={
-                <Link to="/favoritas" className="text-sm font-medium text-fg-2 hover:text-fg">
-                  Ver tudo
+                <Link to={paths.favorites} className="text-sm font-medium text-fg-2 hover:text-fg">
+                  {t.home.seeAll}
                 </Link>
               }
             >

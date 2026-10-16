@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
+import { paths } from "../lib/routes";
 import { selectCurrent, usePlayer } from "../player/player";
 import { useLibrary } from "../stores/library";
 import { useUi } from "../stores/ui";
@@ -75,7 +76,7 @@ export function useShortcuts() {
           break;
         case "/":
           handled();
-          navigate("/buscar");
+          navigate(paths.search);
           requestAnimationFrame(() => document.getElementById("search-input")?.focus());
           break;
         case "?":

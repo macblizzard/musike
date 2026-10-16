@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
@@ -123,23 +123,49 @@
         </svg>
         musike
       </div>
-      <div id="status">Iniciando</div>
+      <div id="status"></div>
       <div class="rows" id="rows"></div>
     </main>
     <script>
-      const names = { "yt-dlp": "yt-dlp (busca no YouTube)", deno: "Deno (desafios do YouTube)", ffmpeg: "FFmpeg (vídeo HD)" };
+      // The app's language, passed by the desktop shell (?lang=); English until the user picks another.
+      const TEXTS = {
+        en: {
+          starting: "Starting",
+          downloading: "Downloading components on first launch",
+          ready: "ready",
+          extracting: "extracting",
+          of: (got, total) => `${got} of ${total} MB`,
+          failed: "Couldn't start: ",
+          retry: "Try again",
+          names: { "yt-dlp": "yt-dlp (YouTube search)", deno: "Deno (YouTube challenges)", ffmpeg: "FFmpeg (HD video)" },
+        },
+        "pt-BR": {
+          starting: "Iniciando",
+          downloading: "Baixando componentes na primeira execução",
+          ready: "pronto",
+          extracting: "extraindo",
+          of: (got, total) => `${got} de ${total} MB`,
+          failed: "Não foi possível iniciar: ",
+          retry: "Tentar de novo",
+          names: { "yt-dlp": "yt-dlp (busca no YouTube)", deno: "Deno (desafios do YouTube)", ffmpeg: "FFmpeg (vídeo HD)" },
+        },
+      };
+      const lang = new URLSearchParams(location.search).get("lang");
+      const t = TEXTS[lang] ?? TEXTS.en;
+      document.documentElement.lang = TEXTS[lang] ? lang : "en";
+      document.getElementById("status").textContent = t.starting;
       const mb = (n) => (n / 1048576).toFixed(1);
 
       window.update = (state) => {
         const essentials = Object.entries(state).filter(([k]) => k !== "ffmpeg");
         if (!essentials.length) return;
-        document.getElementById("status").textContent = "Baixando componentes na primeira execução";
+        document.getElementById("status").textContent = t.downloading;
         document.getElementById("rows").innerHTML = essentials
           .map(([key, s]) => {
             const pct = s.total ? Math.round((s.received / s.total) * 100) : 0;
-            const label = s.status === "done" ? "pronto" : s.status === "extracting" ? "extraindo" : s.total ? `${mb(s.received)} de ${mb(s.total)} MB` : `${mb(s.received)} MB`;
+            const label = s.status === "done" ? t.ready : s.status === "extracting" ? t.extracting : s.total ? t.of(mb(s.received), mb(s.total)) : `${mb(s.received)} MB`;
             const width = s.status === "done" || s.status === "extracting" ? 100 : pct;
-            return `<div class="row"><span><b>${names[key] ?? key}</b><em>${label}</em></span><div class="bar"><i style="width:${width}%"></i></div></div>`;
+            return `<div class="row"><span><b>${t.names[key] ?? key}</b><em>${label}</em></span><div class="bar"><i style="width:${width}%"></i></div></div>`;
           })
           .join("");
       };
@@ -147,9 +173,9 @@
       window.fail = (message) => {
         const status = document.getElementById("status");
         status.className = "error";
-        status.textContent = "Não foi possível iniciar: " + message;
+        status.textContent = t.failed + message;
         const retry = document.createElement("button");
-        retry.textContent = "Tentar de novo";
+        retry.textContent = t.retry;
         retry.onclick = () => window.musikeDesktop.retry();
         document.querySelector("main").appendChild(retry);
       };

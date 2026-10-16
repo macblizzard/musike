@@ -31,6 +31,8 @@ const loadServer = async () => ({
   ...(await import("../../server/src/app.js")),
   ...(await import("../../server/src/bootstrap.js")),
   ...(await import("../../server/src/tools.js")),
+  ...(await import("../../server/src/i18n.js")),
+  HttpError: (await import("../../server/src/types.js")).HttpError,
 });
 
 const THEME = {
@@ -48,6 +50,23 @@ interface WindowState {
 }
 
 const stateFile = path.join(userData, "window.json");
+
+// The language picked in the web app, kept here so the splash screen (shown before the web app loads) uses it too.
+type Lang = "en" | "pt-BR";
+const settingsFile = path.join(userData, "settings.json");
+const isLang = (v: unknown): v is Lang => v === "en" || v === "pt-BR";
+
+function readLang(): Lang {
+  try {
+    const { lang } = JSON.parse(readFileSync(settingsFile, "utf8")) as { lang?: unknown };
+    if (isLang(lang)) return lang;
+  } catch {
+    // first launch
+  }
+  return "en";
+}
+
+let lang = readLang();
 
 function readWindowState(): WindowState {
   try {
@@ -82,7 +101,7 @@ function createSplash(): BrowserWindow {
     backgroundColor: THEME.dark.color,
     webPreferences: { preload: path.join(here, "preload.cjs"), sandbox: true, contextIsolation: true },
   });
-  void splash.loadFile(path.join(here, "splash.html"));
+  void splash.loadFile(path.join(here, "splash.html"), { query: { lang } });
   splash.once("ready-to-show", () => splash.show());
   return splash;
 }
@@ -139,7 +158,7 @@ async function launch() {
   const s = await loadServer();
   // Show progress while yt-dlp and Deno download on the first launch.
   const report = setInterval(() => {
-    splash.webContents.executeJavaScript(`window.update(${JSON.stringify(s.downloads())})`).catch(() => {});
+    splash.webContents.executeJavaScript(`window.update(${JSON.stringify(s.downloads(lang))})`).catch(() => {});
   }, 250);
 
   try {
@@ -150,7 +169,7 @@ async function launch() {
     s.ensureComponent("ffmpeg").catch(() => {});
   } catch (err) {
     clearInterval(report);
-    const message = JSON.stringify((err as Error).message);
+    const message = JSON.stringify(err instanceof s.HttpError ? s.tr(lang, err.text) : (err as Error).message);
     await splash.webContents.executeJavaScript(`window.fail(${message})`).catch(() => {});
     return;
   }
@@ -165,6 +184,16 @@ ipcMain.on("musike:theme", (event, theme: "dark" | "light") => {
   const colors = THEME[theme] ?? THEME.dark;
   win?.setTitleBarOverlay({ ...colors, height: TITLEBAR_HEIGHT });
   win?.setBackgroundColor(colors.color);
+});
+
+ipcMain.on("musike:lang", (_event, next: unknown) => {
+  if (!isLang(next) || next === lang) return;
+  lang = next;
+  try {
+    writeFileSync(settingsFile, JSON.stringify({ lang }));
+  } catch {
+    /* not critical: the splash falls back to English */
+  }
 });
 
 ipcMain.on("musike:retry", (event) => {

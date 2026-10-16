@@ -17,8 +17,8 @@ export default defineConfig({
       manifest: {
         name: "Musike",
         short_name: "Musike",
-        description: "Sua música, sem interrupção.",
-        lang: "pt-BR",
+        description: "Your music, uninterrupted.",
+        lang: "en",
         theme_color: "#0B0C0F",
         background_color: "#0B0C0F",
         display: "standalone",

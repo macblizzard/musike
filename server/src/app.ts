@@ -7,20 +7,21 @@ import { config } from "./config.js";
 import * as library from "./library.js";
 import { findVideoFor, radio, search, suggestions } from "./search.js";
 import { proxyStream, serveFile } from "./stream.js";
-import { startJob, systemInfo, type Channel } from "./system.js";
+import { langOf, msg, tr } from "./i18n.js";
+import { presentJob, startJob, systemInfo, type Channel } from "./system.js";
 import { refreshTools, type Tools } from "./tools.js";
 import { HttpError, VIDEO_ID } from "./types.js";
 import { downloadHd, pruneCache, resolveStreams } from "./ytdlp.js";
 
 function videoId(params: unknown): string {
   const id = (params as { id?: string }).id ?? "";
-  if (!VIDEO_ID.test(id)) throw new HttpError(400, "ID de vídeo inválido.");
+  if (!VIDEO_ID.test(id)) throw new HttpError(400, msg("invalidVideoId"));
   return id;
 }
 
 function query(q: unknown): string {
   const s = typeof q === "string" ? q.trim() : "";
-  if (!s) throw new HttpError(400, "Digite algo para buscar.");
+  if (!s) throw new HttpError(400, msg("emptyQuery"));
   return s.slice(0, 200);
 }
 
@@ -42,68 +43,70 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
   const found = await refreshTools();
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "warn" } });
 
-  app.setErrorHandler((err, _req, reply) => {
+  app.setErrorHandler((err, req, reply) => {
     const e = err as Error & { statusCode?: number };
     const status = e instanceof HttpError ? e.status : e.statusCode ?? 500;
     if (status >= 500) app.log.error(e);
-    if (!reply.sent) reply.code(status).send({ error: e.message, code: e instanceof HttpError ? e.code : undefined });
+    // Musike's own errors are translated into the language the app asked for.
+    const error = e instanceof HttpError ? tr(langOf(req), e.text) : e.message;
+    if (!reply.sent) reply.code(status).send({ error, code: e instanceof HttpError ? e.code : undefined });
   });
 
   app.get("/api/health", async () => ({ ok: true }));
 
   // System: yt-dlp status and one-click update
 
-  app.get("/api/system", () => systemInfo());
+  app.get("/api/system", (req) => systemInfo(langOf(req)));
 
   app.post("/api/system/ytdlp", async (req) => {
     const { channel } = (req.body ?? {}) as { channel?: string };
-    return startJob((channel === "nightly" ? "nightly" : "stable") satisfies Channel);
+    return presentJob(startJob((channel === "nightly" ? "nightly" : "stable") satisfies Channel), langOf(req));
   });
 
   // Discovery
 
   app.get("/api/search", async (req) => {
     const { q, type } = req.query as { q?: string; type?: string };
-    return { tracks: await search(query(q), type === "video" ? "video" : "song") };
+    return { tracks: await search(query(q), type === "video" ? "video" : "song", langOf(req)) };
   });
 
   app.get("/api/suggest", async (req) => {
     const { q } = req.query as { q?: string };
     if (!q?.trim()) return { suggestions: [] };
-    return { suggestions: await suggestions(q.trim().slice(0, 100)).catch(() => []) };
+    return { suggestions: await suggestions(q.trim().slice(0, 100), langOf(req)).catch(() => []) };
   });
 
   app.get("/api/radio/:id", async (req) => ({ tracks: await radio(videoId(req.params)) }));
 
   // Browse by genre: genre → its artists or all its songs → an artist's top songs
 
-  app.get("/api/genres", async () => ({ genres: await genres("") }));
+  app.get("/api/genres", async (req) => ({ genres: await genres(langOf(req)) }));
 
   app.get("/api/genres/:gid", async (req) => {
     const { gid } = req.params as { gid: string };
-    if (!GENRE_ID.test(gid)) throw new HttpError(400, "Gênero inválido.");
-    return genre(gid);
+    if (!GENRE_ID.test(gid)) throw new HttpError(400, msg("invalidGenre"));
+    return genre(gid, langOf(req));
   });
 
   /** "Load more" for a genre's artists: `offset` is how many the app already shows. */
   app.get("/api/genres/:gid/artists", async (req) => {
     const { gid } = req.params as { gid: string };
     const offset = Number((req.query as { offset?: string }).offset ?? 0);
-    if (!GENRE_ID.test(gid)) throw new HttpError(400, "Gênero inválido.");
-    if (!Number.isInteger(offset) || offset < 0 || offset > 1000) throw new HttpError(400, "Posição inválida.");
-    return genreArtists(gid, offset);
+    if (!GENRE_ID.test(gid)) throw new HttpError(400, msg("invalidGenre"));
+    if (!Number.isInteger(offset) || offset < 0 || offset > 1000) throw new HttpError(400, msg("invalidOffset"));
+    return genreArtists(gid, offset, langOf(req));
   });
 
   app.get("/api/artists/:aid", async (req) => {
     const { aid } = req.params as { aid: string };
-    if (!ARTIST_ID.test(aid)) throw new HttpError(400, "Artista inválido.");
-    return artist(aid);
+    if (!ARTIST_ID.test(aid)) throw new HttpError(400, msg("invalidArtist"));
+    return artist(aid, langOf(req));
   });
 
   /** The music video for a song, so "Vídeo" mode can show the clip instead of a still cover. */
   app.get("/api/video-for/:id", async (req) => {
     const { title, artist, duration } = req.query as { title?: string; artist?: string; duration?: string };
-    if (!title?.trim()) throw new HttpError(400, "Informe o título da música.");
+    if (!title?.trim()) throw new HttpError(400, msg("missingTitle"));
     const track = await findVideoFor(videoId(req.params), title.slice(0, 200), (artist ?? "").slice(0, 200), Number(duration) || 0);
     return { track };
   });
@@ -135,23 +138,23 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
   app.post("/api/library/import", { bodyLimit: 25 * 1024 * 1024 }, async (req) => {
     const body = (req.body ?? {}) as { backup?: { format?: unknown; version?: unknown; library?: unknown }; mode?: unknown };
     const backup = body.backup;
-    if (backup?.format !== "musike-backup") throw new HttpError(400, "Este arquivo não é um backup do Musike.");
+    if (backup?.format !== "musike-backup") throw new HttpError(400, msg("notBackup"));
     if (typeof backup.version !== "number" || backup.version > 1) {
-      throw new HttpError(400, "Backup de uma versão mais nova do Musike. Atualize o app para importar.");
+      throw new HttpError(400, msg("newerBackup"));
     }
     return library.importLibrary(backup.library, body.mode === "replace" ? "replace" : "merge");
   });
 
   app.put("/api/favorites/:id", async (req) => {
     const track = library.sanitizeTrack(req.body);
-    if (track.id !== videoId(req.params)) throw new HttpError(400, "ID não confere.");
+    if (track.id !== videoId(req.params)) throw new HttpError(400, msg("idMismatch"));
     return { favorites: await library.addFavorite(track) };
   });
 
   /** Bulk add, e.g. from the list search. */
   app.post("/api/favorites", async (req) => {
     const { tracks } = (req.body ?? {}) as { tracks?: unknown };
-    if (!Array.isArray(tracks)) throw new HttpError(400, "Envie uma lista de faixas.");
+    if (!Array.isArray(tracks)) throw new HttpError(400, msg("tracksRequired"));
     return { favorites: await library.addFavorites(tracks.slice(0, 500).map(library.sanitizeTrack)) };
   });
 
@@ -194,7 +197,7 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
     await app.register(fastifyStatic, { root: config.webDist });
     app.setNotFoundHandler((req, reply) => {
       if (req.method === "GET" && !req.url.startsWith("/api/")) return reply.sendFile("index.html");
-      reply.code(404).send({ error: "Rota não encontrada." });
+      reply.code(404).send({ error: tr(langOf(req), msg("routeNotFound")) });
     });
   }
 
@@ -218,5 +221,5 @@ async function freePort(start: number, host: string): Promise<number> {
     });
     if (free) return port;
   }
-  throw new Error(`Nenhuma porta livre entre ${start} e ${start + 9}.`);
+  throw new HttpError(500, msg("noFreePort", { from: start, to: start + 9 }));
 }

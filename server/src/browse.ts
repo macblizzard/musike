@@ -1,4 +1,5 @@
 import type { Innertube } from "youtubei.js";
+import { isLang, msg, type Lang } from "./i18n.js";
 import { sized, text, toTrack, withClient } from "./search.js";
 import type { Track } from "./types.js";
 import { HttpError } from "./types.js";
@@ -102,9 +103,17 @@ function roundRobin<T>(lists: T[][]): T[] {
 /** "Céu Azul (Ao Vivo)" → "Céu Azul": enough to recognize the song in a short preview. */
 const bareTitle = (title: string) => title.replace(/\s*[([].*?[)\]]/g, "").trim() || title;
 
-export const genres = cached(6 * 60 * MINUTE, async (): Promise<Genre[]> => {
-  const page = await withClient((yt) => browse(yt, { browseId: "FEmusic_moods_and_genres" })).catch(() => {
-    throw new HttpError(502, "Não foi possível carregar os gêneros agora. Tente de novo.");
+// Pages are cached per language: YouTube Music words genre names and bios in the session's language.
+const keyOf = (lang: Lang, id = "") => `${lang}|${id}`;
+function parseKey(key: string): { lang: Lang; id: string } {
+  const [lang = "", ...rest] = key.split("|");
+  return { lang: isLang(lang) ? lang : "en", id: rest.join("|") };
+}
+
+const genreList = cached(6 * 60 * MINUTE, async (key): Promise<Genre[]> => {
+  const { lang } = parseKey(key);
+  const page = await withClient((yt) => browse(yt, { browseId: "FEmusic_moods_and_genres" }), lang).catch(() => {
+    throw new HttpError(502, msg("genresUnavailable"));
   });
   const grids = shelvesOf(page);
   // The page has "moods" then "genres"; match the title in any language, falling back to the last grid.
@@ -114,9 +123,11 @@ export const genres = cached(6 * 60 * MINUTE, async (): Promise<Genre[]> => {
     .filter((g) => GENRE_ID.test(g.id) && g.name);
 });
 
-async function playlistItems(id: string, limit: number): Promise<any[]> {
+export const genres = (lang: Lang) => genreList(keyOf(lang));
+
+async function playlistItems(id: string, limit: number, lang: Lang): Promise<any[]> {
   try {
-    const list = await withClient((yt) => yt.music.getPlaylist(id));
+    const list = await withClient((yt) => yt.music.getPlaylist(id), lang);
     return ((list as any).items ?? (list as any).contents ?? []).slice(0, limit);
   } catch {
     return [];
@@ -159,6 +170,7 @@ interface GenreState {
   pool: GenreArtist[];
   /** Playlists not read yet. */
   queue: string[];
+  lang: Lang;
   extending?: Promise<void>;
 }
 
@@ -166,11 +178,12 @@ interface GenreState {
  * A genre's songs and the artists behind them. The page lists ~50 songs, playlists and albums;
  * two editorial playlists widen the song list (and are all there is for pages like "Décadas").
  */
-const genreState = cached(30 * MINUTE, async (id): Promise<GenreState> => {
+const genreState = cached(30 * MINUTE, async (key): Promise<GenreState> => {
+  const { lang, id } = parseKey(key);
   const [all, page] = await Promise.all([
-    genres("").catch(() => [] as Genre[]),
-    withClient((yt) => browse(yt, { browseId: "FEmusic_moods_and_genres_category", params: id })).catch(() => {
-      throw new HttpError(502, "Não foi possível abrir este gênero agora. Tente de novo.");
+    genres(lang).catch(() => [] as Genre[]),
+    withClient((yt) => browse(yt, { browseId: "FEmusic_moods_and_genres_category", params: id }), lang).catch(() => {
+      throw new HttpError(502, msg("genreUnavailable"));
     }),
   ]);
   const shelves = shelvesOf(page);
@@ -190,10 +203,10 @@ const genreState = cached(30 * MINUTE, async (id): Promise<GenreState> => {
     ),
   ];
   const first = songs.length >= 10 ? 2 : 4;
-  const fromPlaylists = (await Promise.all(playlists.slice(0, first).map((p) => playlistItems(p, 60)))).flat();
+  const fromPlaylists = (await Promise.all(playlists.slice(0, first).map((p) => playlistItems(p, 60, lang)))).flat();
 
   const tracks = uniqueTracks([...songs, ...fromPlaylists].map((i) => toTrack(i, "song"))).slice(0, MAX_GENRE_TRACKS);
-  if (!tracks.length && !albums.length) throw new HttpError(404, "Nada encontrado para este gênero.");
+  if (!tracks.length && !albums.length) throw new HttpError(404, msg("genreEmpty"));
 
   // The genre's own song and album shelves weigh more than playlists.
   const pool = rankArtists(
@@ -218,22 +231,23 @@ const genreState = cached(30 * MINUTE, async (id): Promise<GenreState> => {
     },
     pool,
     queue,
+    lang,
   };
 });
 
-export const genre = async (id: string): Promise<GenrePage> => (await genreState(id)).page;
+export const genre = async (id: string, lang: Lang): Promise<GenrePage> => (await genreState(keyOf(lang, id))).page;
 
 /** Reads the next few playlists of the genre and appends the artists they bring. */
 async function extend(state: GenreState): Promise<void> {
   const batch = state.queue.splice(0, PLAYLISTS_PER_ROUND);
-  const items = (await Promise.all(batch.map((p) => playlistItems(p, 100)))).flat();
+  const items = (await Promise.all(batch.map((p) => playlistItems(p, 100, state.lang)))).flat();
   state.pool.push(...rankArtists([{ items, weight: 1, hits: true }], new Set(state.pool.map((a) => a.id))));
   if (state.pool.length >= MAX_ARTISTS) state.queue.length = 0;
 }
 
 /** The next page of a genre's artists, reading more of its playlists when the ones found so far run out. */
-export async function genreArtists(id: string, offset: number): Promise<{ artists: GenreArtist[]; hasMore: boolean }> {
-  const state = await genreState(id);
+export async function genreArtists(id: string, offset: number, lang: Lang): Promise<{ artists: GenreArtist[]; hasMore: boolean }> {
+  const state = await genreState(keyOf(lang, id));
   // A few rounds at most per request, so a run of playlists with no new names can't stall it.
   for (let round = 0; round < 5 && state.pool.length < offset + ARTISTS_PAGE && state.queue.length; round++) {
     // Two "load more" taps at once share the same read instead of skipping playlists.
@@ -247,9 +261,10 @@ export async function genreArtists(id: string, offset: number): Promise<{ artist
 }
 
 /** An artist's most played songs (the "Top songs" shelf, expanded to its full list). */
-export const artist = cached(30 * MINUTE, async (id): Promise<ArtistPage> => {
-  const page = await withClient((yt) => yt.music.getArtist(id)).catch(() => {
-    throw new HttpError(502, "Não foi possível abrir este artista agora. Tente de novo.");
+const artistPage = cached(30 * MINUTE, async (key): Promise<ArtistPage> => {
+  const { lang, id } = parseKey(key);
+  const page = await withClient((yt) => yt.music.getArtist(id), lang).catch(() => {
+    throw new HttpError(502, msg("artistUnavailable"));
   });
   const header: any = page.header;
   const shelf: any = page.sections.find((s) => s.type === "MusicShelf");
@@ -257,13 +272,13 @@ export const artist = cached(30 * MINUTE, async (id): Promise<ArtistPage> => {
   // The shelf shows 5; its "show all" link is a playlist with the full ranking.
   const fullList = shelf?.endpoint?.payload?.browseId;
   if (typeof fullList === "string" && fullList.startsWith("VL")) {
-    const more = await playlistItems(fullList, MAX_HITS * 2);
+    const more = await playlistItems(fullList, MAX_HITS * 2, lang);
     if (more.length) items = more;
   }
   const banner = (header?.thumbnail?.contents ?? header?.thumbnail ?? [])[0]?.url;
   const name = text(header?.title);
   const tracks = uniqueTracks(items.map((i) => toTrack(i, "song"))).slice(0, MAX_HITS);
-  if (!name && !tracks.length) throw new HttpError(404, "Artista não encontrado.");
+  if (!name && !tracks.length) throw new HttpError(404, msg("artistNotFound"));
   return {
     id,
     name,
@@ -272,3 +287,5 @@ export const artist = cached(30 * MINUTE, async (id): Promise<ArtistPage> => {
     tracks,
   };
 });
+
+export const artist = (id: string, lang: Lang) => artistPage(keyOf(lang, id));

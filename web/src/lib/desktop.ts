@@ -2,6 +2,8 @@
 interface DesktopBridge {
   platform: string;
   setTheme: (theme: "dark" | "light") => void;
+  /** Missing in desktop builds older than 1.2. */
+  setLanguage?: (lang: string) => void;
 }
 
 export const desktop = (window as Window & { musikeDesktop?: DesktopBridge }).musikeDesktop;

@@ -2,6 +2,7 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { msg } from "./i18n.js";
 import { HttpError } from "./types.js";
 import { invalidate, resolveStreams, type StreamFormat } from "./ytdlp.js";
 
@@ -16,7 +17,7 @@ export async function proxyStream(req: FastifyRequest, reply: FastifyReply, id: 
     if (fresh) invalidate(id);
     const resolved = await resolveStreams(id);
     const fmt = kind === "audio" ? resolved.audio : resolved.video;
-    if (!fmt) throw new HttpError(404, "Este vídeo não tem versão SD combinada. Use HD.");
+    if (!fmt) throw new HttpError(404, msg("noSdVideo"));
     return fmt;
   };
 
@@ -41,7 +42,7 @@ export async function proxyStream(req: FastifyRequest, reply: FastifyReply, id: 
     upstream = await request(fmt);
   }
   if (!upstream.ok || !upstream.body) {
-    throw new HttpError(502, `O YouTube recusou o stream (HTTP ${upstream.status}). Tente atualizar o yt-dlp em Sistema.`, "maybe_outdated");
+    throw new HttpError(502, msg("streamRefused", { status: upstream.status }), "maybe_outdated");
   }
 
   reply.code(upstream.status);

@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.js";
+import { msg } from "./i18n.js";
 import { HttpError, VIDEO_ID, type Library, type Playlist, type Track } from "./types.js";
 
 const FILE = path.join(config.dataDir, "library.json");
@@ -38,14 +39,14 @@ const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max
 export function sanitizeTrack(input: unknown): Track {
   const t = (input ?? {}) as Record<string, unknown>;
   const id = str(t.id, 11);
-  if (!VIDEO_ID.test(id)) throw new HttpError(400, "Faixa inválida.");
+  if (!VIDEO_ID.test(id)) throw new HttpError(400, msg("invalidTrack"));
   const url = (v: unknown) => {
     const s = str(v, 500);
     return /^https:\/\//.test(s) ? s : "";
   };
   return {
     id,
-    title: str(t.title, 300) || "Sem título",
+    title: str(t.title, 300) || "Untitled",
     artist: str(t.artist, 300),
     album: str(t.album, 300) || undefined,
     duration: typeof t.duration === "number" && Number.isFinite(t.duration) ? Math.max(0, Math.round(t.duration)) : 0,
@@ -57,7 +58,7 @@ export function sanitizeTrack(input: unknown): Track {
 
 function findPlaylist(lib: Library, pid: string): Playlist {
   const p = lib.playlists.find((x) => x.id === pid);
-  if (!p) throw new HttpError(404, "Playlist não encontrada.");
+  if (!p) throw new HttpError(404, msg("playlistNotFound"));
   return p;
 }
 
@@ -99,7 +100,7 @@ export async function pushHistory(track: Track): Promise<Track[]> {
 export async function createPlaylist(name: string, tracks: Track[] = []): Promise<Playlist> {
   const lib = await load();
   const clean = name.trim().slice(0, 80);
-  if (!clean) throw new HttpError(400, "Dê um nome à playlist.");
+  if (!clean) throw new HttpError(400, msg("playlistNameRequired"));
   const now = Date.now();
   const playlist: Playlist = { id: randomUUID(), name: clean, createdAt: now, updatedAt: now, tracks };
   lib.playlists.unshift(playlist);
@@ -111,7 +112,7 @@ export async function renamePlaylist(pid: string, name: string): Promise<Playlis
   const lib = await load();
   const p = findPlaylist(lib, pid);
   const clean = name.trim().slice(0, 80);
-  if (!clean) throw new HttpError(400, "Dê um nome à playlist.");
+  if (!clean) throw new HttpError(400, msg("playlistNameRequired"));
   p.name = clean;
   p.updatedAt = Date.now();
   await persist();
