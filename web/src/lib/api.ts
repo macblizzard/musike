@@ -30,6 +30,19 @@ export interface SystemJob {
   log: string[];
 }
 
+export interface Lyrics {
+  found: boolean;
+  /** lrclib was unreachable or busy, so there is no answer yet — offer a retry. */
+  unavailable?: boolean;
+  instrumental?: boolean;
+  plain?: string;
+  synced?: string;
+  track?: string;
+  artist?: string;
+  album?: string;
+  source?: string;
+}
+
 export interface SystemInfo {
   ytdlp: {
     path: string | null;
@@ -80,6 +93,11 @@ export const api = {
     request<{ track: Track | null }>(
       `/api/video-for/${t.id}?${new URLSearchParams({ title: t.title, artist: t.artist, duration: String(t.duration || "") })}`,
     ).then((r) => r.track),
+  /** Lyrics for a track, from lrclib. The server keeps the answer, so each track is looked up once. */
+  lyrics: (t: Track) =>
+    request<Lyrics>(
+      `/api/lyrics/${t.id}?${new URLSearchParams({ title: t.title, artist: t.artist, duration: String(t.duration || "") })}`,
+    ),
   prepare: (id: string, signal?: AbortSignal) =>
     request<{ id: string; title: string; duration: number; hasSdVideo: boolean }>(`/api/prepare/${id}`, {
       method: "POST",

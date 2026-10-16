@@ -36,6 +36,8 @@ interface UiState {
   addToPlaylist: Track[] | null;
   shortcutsOpen: boolean;
   settingsOpen: boolean;
+  /** The track whose lyrics are open, or null. */
+  lyricsFor: Track | null;
   /** Cinema view: the video maximized over everything. */
   theater: boolean;
   setTheme: (t: Theme) => void;
@@ -50,6 +52,7 @@ interface UiState {
   openAddToPlaylist: (tracks: Track[] | null) => void;
   setShortcutsOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
+  openLyrics: (track: Track | null) => void;
   setTheater: (open: boolean) => void;
 }
 
@@ -74,6 +77,7 @@ export const useUi = create<UiState>((set, get) => ({
   addToPlaylist: null,
   shortcutsOpen: false,
   settingsOpen: false,
+  lyricsFor: null,
   theater: false,
 
   setTheme: (theme) => {
@@ -122,6 +126,7 @@ export const useUi = create<UiState>((set, get) => ({
   openAddToPlaylist: (addToPlaylist) => set({ addToPlaylist, menu: null }),
   setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+  openLyrics: (lyricsFor) => set({ lyricsFor, menu: null }),
   setTheater: (theater) => set({ theater }),
 }));
 

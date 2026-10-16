@@ -16,6 +16,7 @@ import { selectCurrent, usePlayer, useStatusText } from "../player/player";
 import { useUi, type PanelTab } from "../stores/ui";
 import { Artwork } from "./Artwork";
 import { FavoriteButton, ModeSwitch, Scrubber, Transport } from "./Controls";
+import { LyricsButton } from "./LyricsButton";
 import { OfflineTrackButton } from "./OfflineTrackButton";
 import { IconButton } from "./IconButton";
 import { QueueList } from "./Queue";
@@ -85,6 +86,7 @@ function TrackHeading({ track, large = false }: { track: Track; large?: boolean 
       </div>
       <FavoriteButton track={track} size={large ? "lg" : "md"} />
       <OfflineTrackButton track={track} size={large ? "lg" : "md"} />
+      <LyricsButton track={track} size={large ? "lg" : "md"} />
     </div>
   );
 }

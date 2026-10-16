@@ -51,6 +51,9 @@ cannot silently drop them. Re-check them after any upstream update:
 | `web/src/components/OfflineTrackButton.tsx` | keep/release button on the Now Playing screen and the player bar |
 | `web/src/components/NowPlaying.tsx` | that button beside the favourite in every track heading |
 | `web/src/components/PlayerBar.tsx` | and in the desktop player bar |
+| `web/src/components/LyricsButton.tsx` | opens the lyrics sheet, beside the same buttons |
+| `web/src/components/LyricsSheet.tsx` | the lyrics sheet — synced line highlighted as the song plays |
+| `server/src/lyrics.ts` | lrclib lookup for the lyrics endpoint, cached under `data/lyrics.json` |
 | `web/src/components/SettingsDialog.tsx` | storage readout (offline audio, quota, persistence) and clear-downloads |
 
 ## Audio path: progressive remux (do not "simplify" this away)
@@ -115,6 +118,27 @@ layout as the rest. So do the left rail and the Home shortcut grid — the rail 
 The tracks themselves are stored beside their audio, under a `?musike-meta`
 key, so the collection lists what is held without asking the network for anything; a track kept
 before that metadata existed is filled in from the library, so older downloads still appear.
+
+## Lyrics (lrclib)
+
+A track's lyrics come from lrclib.net — a free community database with no key, no account and no
+quota. `server/src/lyrics.ts` asks for them; `GET /api/lyrics/<id>?title=&artist=&duration=` serves
+the answer, and the sheet (the Lyrics button beside the favourite on the playing surfaces)
+highlights the current line when lrclib has the timing, falling back to plain text when it doesn't.
+
+- **Answers are kept, misses included.** `data/lyrics.json` holds one record per track, so a song is
+  asked about once ever. A miss is re-checked after 30 days — the database keeps growing.
+- **An outage is not an answer.** A timeout, an unreachable host or a busy lrclib (`503`/`429`)
+  returns `{found:false, unavailable:true}` and is *not* stored: the sheet offers "try again"
+  instead of claiming there are no lyrics. lrclib sends a `retry-after` when busy, so a lookup
+  retries once after that delay, which turns most of those into real answers.
+- **Title and artist are cleaned before asking.** Uploaders wrap titles in promo brackets
+  ("… // with Heppner // Official Video") and put the channel in the artist field ("SCHILLER
+  official", "Kayahin - Topic"); both are stripped, because lrclib matches exact strings.
+- **Coverage is partial by nature** — measured on a real library, roughly half the Western
+  catalogue and close to none of the Bengali. A miss is normal, not a bug.
+- lrclib rate-limits by IP and asks callers to identify themselves, so requests carry a `musike/…`
+  User-Agent. Dozens of lookups at once will draw 503s; ordinary listening will not.
 
 ## Commands
 

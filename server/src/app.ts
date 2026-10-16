@@ -5,6 +5,7 @@ import Fastify from "fastify";
 import { ARTIST_ID, artist, GENRE_ID, genre, genreArtists, genres } from "./browse.js";
 import { config } from "./config.js";
 import * as library from "./library.js";
+import { lyricsFor } from "./lyrics.js";
 import { findVideoFor, radio, search, suggestions } from "./search.js";
 import { proxyStream, serveFile } from "./stream.js";
 import { langOf, msg, tr } from "./i18n.js";
@@ -109,6 +110,12 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
     if (!title?.trim()) throw new HttpError(400, msg("missingTitle"));
     const track = await findVideoFor(videoId(req.params), title.slice(0, 200), (artist ?? "").slice(0, 200), Number(duration) || 0);
     return { track };
+  });
+
+  /** Lyrics for a track, from lrclib. Answered once and kept, misses included. */
+  app.get("/api/lyrics/:id", async (req) => {
+    const { title, artist, duration } = req.query as { title?: string; artist?: string; duration?: string };
+    return lyricsFor(videoId(req.params), { title, artist, duration: Number(duration) || 0 });
   });
 
   // Playback

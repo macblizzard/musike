@@ -319,6 +319,19 @@ export const en = {
     noHitsBody: "YouTube Music doesn't list hits for this artist.",
   },
 
+  lyrics: {
+    open: "Lyrics",
+    title: "Lyrics",
+    loading: "Looking for lyrics…",
+    none: "No lyrics for this track",
+    noneBody: "lrclib doesn't have them yet.",
+    busy: "lrclib is busy right now",
+    retry: "Try again",
+    instrumental: "This one is instrumental.",
+    failed: "Couldn't reach lrclib.",
+    from: "Lyrics from lrclib",
+  },
+
   settings: {
     title: "Settings",
     storage: "Storage",

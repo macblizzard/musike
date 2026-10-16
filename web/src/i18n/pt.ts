@@ -313,6 +313,19 @@ export const pt: Messages = {
     noHitsBody: "O YouTube Music não lista sucessos para este artista.",
   },
 
+  lyrics: {
+    open: "Letra",
+    title: "Letra",
+    loading: "Procurando a letra…",
+    none: "Sem letra para esta faixa",
+    noneBody: "O lrclib ainda não tem.",
+    busy: "O lrclib está ocupado agora",
+    retry: "Tentar de novo",
+    instrumental: "Esta é instrumental.",
+    failed: "Não foi possível falar com o lrclib.",
+    from: "Letra do lrclib",
+  },
+
   settings: {
     title: "Ajustes",
     storage: "Armazenamento",
