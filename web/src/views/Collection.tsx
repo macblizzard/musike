@@ -5,6 +5,7 @@ import { Cover, type CoverKind } from "../components/Cover";
 import { NamePlaylistDialog } from "../components/Dialogs";
 import { IconButton, PlayDisc } from "../components/IconButton";
 import { Modal } from "../components/Modal";
+import { OfflineButton } from "../components/OfflineButton";
 import { EmptyState, PageHeader } from "../components/Page";
 import { TrackList } from "../components/TrackList";
 import { useT } from "../i18n";
@@ -106,6 +107,7 @@ export default function Collection({ kind }: Props) {
         >
           <ShuffleIcon size={24} />
         </IconButton>
+        <OfflineButton tracks={tracks} />
         {kind === "playlist" && (
           <IconButton label={t.collection.more} size="lg" onClick={() => setMoreOpen(true)}>
             <DotsThreeIcon size={26} weight="bold" />

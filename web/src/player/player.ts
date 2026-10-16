@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { getT, useT } from "../i18n";
 import { api, explainStreamError, streamUrl } from "../lib/api";
 import { shuffled } from "../lib/format";
+import { read as readOffline } from "../lib/offline";
 import type { Track } from "../lib/types";
 import { useLibrary } from "../stores/library";
 import { openSettings } from "../stores/system";
@@ -109,6 +110,21 @@ export function warmTrack(id: string, duration: number): void {
 /** The warmed local URL for a track, when it is already in memory. */
 const warmUrl = (id: string): string | undefined => warmBlobs.get(id);
 
+/**
+ * An object URL for a kept track's audio. Only the current one is retained; the previous is
+ * released on a delay, once nothing can still be pointing a media element at it.
+ */
+let offlineLocal: { id: string; url: string } | null = null;
+
+function offlineUrl(id: string, blob: Blob): string {
+  if (offlineLocal?.id === id) return offlineLocal.url;
+  const url = URL.createObjectURL(blob);
+  const previous = offlineLocal;
+  offlineLocal = { id, url };
+  if (previous) setTimeout(() => URL.revokeObjectURL(previous.url), 15_000);
+  return url;
+}
+
 /** Drops old warmed tracks, never revoking the one playing or the one about to play. */
 function trimWarm() {
   if (warmBlobs.size <= WARM_KEEP) return;
@@ -202,7 +218,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     });
   }
 
-  function load(index: number, opts: { autoplay?: boolean; startAt?: number } = {}) {
+  async function load(index: number, opts: { autoplay?: boolean; startAt?: number } = {}) {
     const s = get();
     const track = s.queue[index];
     if (!track) return;
@@ -221,11 +237,30 @@ export const usePlayer = create<PlayerState>((set, get) => {
       });
       activeMedia()?.pause();
       setMetadata(track);
-      void lookupClip(track).then(() => mine === token && load(index, opts));
+      void lookupClip(track).then(() => {
+        if (mine === token) void load(index, opts);
+      });
       return;
     }
 
     const kind = kindFor(track);
+    const mediaId = mediaIdFor(track, kind);
+
+    // A track kept for offline play is read from storage first: no network involved, and the media
+    // element receives the whole file at once, so seeking never needs a byte-range round trip.
+    // `token` is only bumped after the read, so a track change meanwhile wins.
+    let local: string | undefined = kind === "audio" ? warmUrl(mediaId) : undefined;
+    if (kind === "audio" && !local) {
+      const mine = token;
+      try {
+        const blob = await readOffline(mediaId);
+        if (mine !== token) return;
+        if (blob) local = offlineUrl(mediaId, blob);
+      } catch {
+        /* storage unavailable: stream it instead */
+      }
+    }
+
     const media = mediaFor(kind);
     const other = mediaFor(kind === "video" ? "audio" : "video");
     other.pause();
@@ -234,8 +269,9 @@ export const usePlayer = create<PlayerState>((set, get) => {
       other.load();
     }
 
+    const live = get();
     token++;
-    loaded = { id: track.id, kind, quality: s.quality };
+    loaded = { id: track.id, kind, quality: live.quality };
     pendingSeek = opts.startAt ?? 0;
     const autoplay = opts.autoplay !== false;
     set({
@@ -243,17 +279,16 @@ export const usePlayer = create<PlayerState>((set, get) => {
       mediaKind: kind,
       status: autoplay ? "loading" : "paused",
       // Video may need a server-side download first (HD, or videos without a combined SD stream).
-      statusText: kind === "video" ? (s.quality === "hd" ? "preparingHd" : "loadingVideo") : null,
+      statusText: kind === "video" ? (live.quality === "hd" ? "preparingHd" : "loadingVideo") : null,
       videoNote: noteFor(track),
       position: pendingSeek,
       duration: track.duration,
       buffered: 0,
     });
-    media.volume = s.volume;
-    media.muted = s.muted;
-    const mediaId = mediaIdFor(track, kind);
-    // A warmed track is already in memory, so starting it touches no network at all.
-    media.src = (kind === "audio" ? warmUrl(mediaId) : undefined) ?? streamUrl(mediaId, kind, s.quality);
+    media.volume = live.volume;
+    media.muted = live.muted;
+    // A warmed or kept track is already local, so starting it touches no network at all.
+    media.src = local ?? streamUrl(mediaId, kind, live.quality);
     if (autoplay) play(media);
     setMetadata(track);
   }

@@ -204,6 +204,15 @@ export const en = {
     close: "Close video (Esc)",
   },
 
+  offline: {
+    keep: (size: string) => `Keep for offline play (${size})`,
+    remove: (size: string) => `Remove offline copies (${size})`,
+    saving: (done: number, total: number) => `Saving ${done}/${total}`,
+    saved: (n: number) => `${n} tracks saved for offline play`,
+    someFailed: (failed: number, total: number) => `${failed} of ${total} tracks could not be saved`,
+    removed: "Offline copies removed",
+  },
+
   trackMenu: {
     actionsFor: (title: string) => `Actions for ${title}`,
     playNow: "Play now",

@@ -198,6 +198,15 @@ export const pt: Messages = {
     close: "Fechar vídeo (Esc)",
   },
 
+  offline: {
+    keep: (size) => `Guardar para ouvir offline (${size})`,
+    remove: (size) => `Remover cópias offline (${size})`,
+    saving: (done, total) => `Salvando ${done}/${total}`,
+    saved: (n) => `${n} faixas salvas para ouvir offline`,
+    someFailed: (failed, total) => `${failed} de ${total} faixas não puderam ser salvas`,
+    removed: "Cópias offline removidas",
+  },
+
   trackMenu: {
     actionsFor: (title) => `Ações para ${title}`,
     playNow: "Tocar agora",

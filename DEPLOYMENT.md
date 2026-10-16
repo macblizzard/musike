@@ -38,8 +38,11 @@ cannot silently drop them. Re-check them after any upstream update:
 | `server/src/ytdlp.ts` | `progressiveAudio()` + `pruneAudioCache()` — FFmpeg remux of YouTube's fragmented audio |
 | `server/src/app.ts` | `/api/stream/:id/audio` serves the progressive remux, falls back to streaming |
 | `server/src/config.ts` | `MUSIKE_AUDIO_CACHE_MAX_MB`, `MUSIKE_AUDIO_MAX_SECONDS` |
-| `web/src/player/player.ts` | next-track prefetch (blob) and the pre-`ended` hand-off for backgrounded iOS |
+| `web/src/player/player.ts` | next-track prefetch (blob), pre-`ended` hand-off for backgrounded iOS, offline blob preferred in `load()` |
 | `web/src/components/Artwork.tsx` | treat YouTube's 120x120 stand-in thumbnail as a failure so the fallback is used |
+| `web/src/lib/offline.ts` | offline store — collected audio in Cache Storage, keyed by stream URL |
+| `web/src/components/OfflineButton.tsx` | keep/release a whole collection for offline play |
+| `web/src/views/Collection.tsx` | the offline button on Playlists, Favorites and History |
 
 ## Audio path: progressive remux (do not "simplify" this away)
 
@@ -73,6 +76,25 @@ from the client, forward `bytes=0-` and still answer `200` with the full length 
 `content-range`). Suffix ranges (`bytes=-N`) get a `416` from googlevideo — resolve the size from a
 `bytes=0-1` probe and re-ask explicitly. Multi-range (`bytes=a-b,c-d`) comes back as
 `multipart/byteranges`; serve only the first range instead of relabelling that body as `audio/mp4`.
+
+## Offline play (kept tracks)
+
+A collection can be stored on the device: a download button sits next to Shuffle on Playlists,
+Favorites and History. A kept track is read back out of Cache Storage and handed to the media
+element as a blob, so playback needs no network at all and seeking is local — the element receives
+the whole file rather than issuing byte-range requests. The state lives on the device; the only
+server-side part is the progressive remux that every play already uses.
+
+| Piece | Role |
+|---|---|
+| `web/src/lib/offline.ts` | the store — Cache Storage bucket `musike-offline`, keyed by the stream URL |
+| `web/src/components/OfflineButton.tsx` | button, per-track progress, and release |
+| `web/src/player/player.ts` | `load()` prefers a warmed (next track) or kept blob over the stream URL |
+
+Sizing is estimated at about 1 MB per minute (YouTube's 128 kbps audio) and shown on the button
+before anything starts, so a big collection is not a surprise. Copies are never evicted
+automatically — releasing the collection deletes them. iOS caps PWA storage and can clear it under
+pressure, so treat this as a cache, not an archive.
 
 ## Commands
 
