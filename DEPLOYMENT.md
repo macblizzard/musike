@@ -45,6 +45,7 @@ cannot silently drop them. Re-check them after any upstream update:
 | `web/src/views/Collection.tsx` | the offline button on every collection, and the `downloaded` kind |
 | `web/src/stores/offline.ts` | the offline store — one source of truth for every offline surface |
 | `web/src/views/Library.tsx` | the Downloaded entry in the Library |
+| `web/src/components/Rail.tsx` | and in the left rail, beside Favorites and History |
 | `web/src/components/TrackMenu.tsx` | per-track keep/release entry in the track menu |
 | `web/src/components/OfflineTrackButton.tsx` | keep/release button on the Now Playing screen and the player bar |
 | `web/src/components/NowPlaying.tsx` | that button beside the favourite in every track heading |

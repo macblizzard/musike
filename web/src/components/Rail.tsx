@@ -1,6 +1,7 @@
 import {
   BooksIcon,
   ClockCounterClockwiseIcon,
+  DownloadSimpleIcon,
   GearSixIcon,
   HeartIcon,
   HouseIcon,
@@ -13,6 +14,7 @@ import { useT } from "../i18n";
 import { cn } from "../lib/format";
 import { paths } from "../lib/routes";
 import { useLibrary } from "../stores/library";
+import { useOffline } from "../stores/offline";
 import { needsAttention, useSystem } from "../stores/system";
 import { useUi } from "../stores/ui";
 import { Artwork } from "./Artwork";
@@ -95,6 +97,7 @@ export function Rail() {
   const t = useT();
   const playlists = useLibrary((s) => s.playlists);
   const favorites = useLibrary((s) => s.favorites);
+  const downloaded = useOffline((s) => s.tracks);
   const createPlaylist = useLibrary((s) => s.createPlaylist);
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
@@ -159,6 +162,13 @@ export function Rail() {
               <ClockCounterClockwiseIcon size={20} />
             </span>
           </RailLink>
+          {downloaded.length > 0 && (
+            <RailLink to={paths.downloaded} label={t.nav.downloaded} sub={t.common.tracks(downloaded.length)}>
+              <span className="grid size-full place-items-center bg-accent-soft text-accent-text">
+                <DownloadSimpleIcon size={20} weight="bold" />
+              </span>
+            </RailLink>
+          )}
           {playlists.map((p) => (
             <RailLink key={p.id} to={paths.playlist(p.id)} label={p.name} sub={t.common.tracks(p.tracks.length)}>
               <Artwork src={p.tracks[0]?.thumb} className="size-full" iconSize={18} />
