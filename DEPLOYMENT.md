@@ -116,8 +116,9 @@ The Library lists a Downloaded entry whenever anything is held, and it opens the
 layout as the rest. So do the left rail and the Home shortcut grid — the rail is hidden below the
 `md` breakpoint, so on a phone Home and the Library are the only places that can list a collection.
 
-The entry follows **stored ids, not listable tracks**: if the device holds anything at all the
-section is there. A kept track whose metadata is missing (a download made by an older build) is
+The entry is **always present** — a destination that disappears reads as a bug, so it shows
+"None kept" rather than vanishing when the device holds nothing. Its count follows **stored ids, not
+listable tracks**. A kept track whose metadata is missing (a download made by an older build) is
 named from the library, and failing that by the server, which can still resolve a video id — at most
 12 such lookups per refresh, and only until each one is named. A track that belongs to no collection
 and has no metadata is therefore still listed instead of silently disappearing.

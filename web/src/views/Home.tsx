@@ -113,18 +113,16 @@ export default function Home() {
                 </span>
               }
             />
-            {keptCount > 0 && (
-              <Shortcut
-                to={paths.downloaded}
-                label={t.nav.downloaded}
-                tracks={downloaded}
-                cover={
-                  <span className="grid size-full place-items-center bg-accent-soft text-accent-text">
-                    <DownloadSimpleIcon size={24} weight="bold" />
-                  </span>
-                }
-              />
-            )}
+            <Shortcut
+              to={paths.downloaded}
+              label={t.nav.downloaded}
+              tracks={downloaded}
+              cover={
+                <span className="grid size-full place-items-center bg-accent-soft text-accent-text">
+                  <DownloadSimpleIcon size={24} weight="bold" />
+                </span>
+              }
+            />
             {playlists.slice(0, 6).map((p) => (
               <Shortcut
                 key={p.id}

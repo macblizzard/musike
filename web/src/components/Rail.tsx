@@ -162,13 +162,15 @@ export function Rail() {
               <ClockCounterClockwiseIcon size={20} />
             </span>
           </RailLink>
-          {keptCount > 0 && (
-            <RailLink to={paths.downloaded} label={t.nav.downloaded} sub={t.common.tracks(keptCount)}>
-              <span className="grid size-full place-items-center bg-accent-soft text-accent-text">
-                <DownloadSimpleIcon size={20} weight="bold" />
-              </span>
-            </RailLink>
-          )}
+          <RailLink
+            to={paths.downloaded}
+            label={t.nav.downloaded}
+            sub={keptCount ? t.common.tracks(keptCount) : t.settings.offlineNone}
+          >
+            <span className="grid size-full place-items-center bg-accent-soft text-accent-text">
+              <DownloadSimpleIcon size={20} weight="bold" />
+            </span>
+          </RailLink>
           {playlists.map((p) => (
             <RailLink key={p.id} to={paths.playlist(p.id)} label={p.name} sub={t.common.tracks(p.tracks.length)}>
               <Artwork src={p.tracks[0]?.thumb} className="size-full" iconSize={18} />

@@ -67,15 +67,13 @@ export default function Library() {
       <ul className="grid grid-cols-1 gap-1 px-2 pt-2 md:grid-cols-3 md:gap-2 md:px-4 lg:grid-cols-4 2xl:grid-cols-6">
         <Entry to={paths.favorites} name={t.nav.favorites} kind="favorites" tracks={favorites} sub={t.common.tracks(favorites.length)} />
         <Entry to={paths.history} name={t.nav.recentlyPlayed} kind="history" tracks={history} sub={t.common.tracks(history.length)} />
-        {keptCount > 0 && (
-          <Entry
-            to={paths.downloaded}
-            name={t.nav.downloaded}
-            kind="downloaded"
-            tracks={downloaded}
-            sub={t.common.tracks(keptCount)}
-          />
-        )}
+        <Entry
+          to={paths.downloaded}
+          name={t.nav.downloaded}
+          kind="downloaded"
+          tracks={downloaded}
+          sub={keptCount ? t.common.tracks(keptCount) : t.settings.offlineNone}
+        />
         {playlists.map((p) => (
           <Entry
             key={p.id}
