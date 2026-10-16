@@ -97,7 +97,7 @@ export function Rail() {
   const t = useT();
   const playlists = useLibrary((s) => s.playlists);
   const favorites = useLibrary((s) => s.favorites);
-  const downloaded = useOffline((s) => s.tracks);
+  const keptCount = useOffline((s) => s.ids.size);
   const createPlaylist = useLibrary((s) => s.createPlaylist);
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
@@ -162,8 +162,8 @@ export function Rail() {
               <ClockCounterClockwiseIcon size={20} />
             </span>
           </RailLink>
-          {downloaded.length > 0 && (
-            <RailLink to={paths.downloaded} label={t.nav.downloaded} sub={t.common.tracks(downloaded.length)}>
+          {keptCount > 0 && (
+            <RailLink to={paths.downloaded} label={t.nav.downloaded} sub={t.common.tracks(keptCount)}>
               <span className="grid size-full place-items-center bg-accent-soft text-accent-text">
                 <DownloadSimpleIcon size={20} weight="bold" />
               </span>

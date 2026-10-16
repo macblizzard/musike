@@ -1,9 +1,34 @@
 import { create } from "zustand";
 import { getT } from "../i18n";
+import { api } from "../lib/api";
 import { drop, dropAll, keep, keptIds, keptTracks, usage } from "../lib/offline";
 import type { Track } from "../lib/types";
 import { useLibrary } from "./library";
 import { toast } from "./ui";
+
+/** How many unnamed tracks to resolve per refresh — each one costs the server a yt-dlp lookup. */
+const ORPHAN_LIMIT = 12;
+
+/**
+ * Names for a track that is kept but belongs to no collection and carries no stored metadata: the
+ * server can still resolve a video id. Covers downloads made before the metadata was stored.
+ */
+async function namedByServer(id: string): Promise<Track | null> {
+  try {
+    const r = await api.prepare(id);
+    return {
+      id,
+      title: r.title,
+      artist: "",
+      duration: r.duration,
+      thumb: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
+      art: `https://i.ytimg.com/vi/${id}/hq720.jpg`,
+      kind: "video",
+    };
+  } catch {
+    return null;
+  }
+}
 
 interface OfflineState {
   /** Ids held for offline play. */
@@ -39,11 +64,18 @@ export const useOffline = create<OfflineState>((set, get) => ({
       for (const track of list) known.set(track.id, track);
     }
     const listed = new Set(tracks.map((t) => t.id));
-    const recovered = [...ids]
-      .filter((id) => !listed.has(id))
-      .map((id) => known.get(id))
-      .filter((track): track is Track => !!track);
+    const missing = [...ids].filter((id) => !listed.has(id));
+    const recovered = missing.map((id) => known.get(id)).filter((track): track is Track => !!track);
     set({ ids, tracks: [...tracks, ...recovered], bytes: counts.bytes, ready: true });
+
+    // Anything still unnamed is kept but gone from every collection — ask the server, which knows
+    // the title for a video id. Bounded, and only needed once per track.
+    const orphans = missing.filter((id) => !known.has(id)).slice(0, ORPHAN_LIMIT);
+    if (!orphans.length) return;
+    const extra = (await Promise.all(orphans.map(namedByServer))).filter((track): track is Track => !!track);
+    if (!extra.length) return;
+    const have = new Set([...tracks, ...recovered].map((t) => t.id));
+    set({ tracks: [...tracks, ...recovered, ...extra.filter((t) => !have.has(t.id))] });
   },
 
   toggle: async (track) => {

@@ -54,10 +54,12 @@ function RecentCard({ track, onPlay }: { track: Track; onPlay: () => void }) {
 export default function Home() {
   const { favorites, playlists, history, status } = useLibrary();
   const downloaded = useOffline((s) => s.tracks);
+  // The section is about what the device holds, so it follows the stored ids, not the listable ones.
+  const keptCount = useOffline((s) => s.ids.size);
   const playList = usePlayer((s) => s.playList);
   const navigate = useNavigate();
   const t = useT();
-  const empty = status === "ready" && !favorites.length && !playlists.length && !history.length && !downloaded.length;
+  const empty = status === "ready" && !favorites.length && !playlists.length && !history.length && !keptCount;
 
   return (
     <div className="pb-8">
@@ -111,7 +113,7 @@ export default function Home() {
                 </span>
               }
             />
-            {downloaded.length > 0 && (
+            {keptCount > 0 && (
               <Shortcut
                 to={paths.downloaded}
                 label={t.nav.downloaded}

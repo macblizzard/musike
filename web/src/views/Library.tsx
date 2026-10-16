@@ -37,6 +37,7 @@ function Entry({ to, name, kind, tracks, sub }: { to: string; name: string; kind
 export default function Library() {
   const { favorites, playlists, history, createPlaylist } = useLibrary();
   const downloaded = useOffline((s) => s.tracks);
+  const keptCount = useOffline((s) => s.ids.size);
   const [creating, setCreating] = useState(false);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const navigate = useNavigate();
@@ -66,13 +67,13 @@ export default function Library() {
       <ul className="grid grid-cols-1 gap-1 px-2 pt-2 md:grid-cols-3 md:gap-2 md:px-4 lg:grid-cols-4 2xl:grid-cols-6">
         <Entry to={paths.favorites} name={t.nav.favorites} kind="favorites" tracks={favorites} sub={t.common.tracks(favorites.length)} />
         <Entry to={paths.history} name={t.nav.recentlyPlayed} kind="history" tracks={history} sub={t.common.tracks(history.length)} />
-        {downloaded.length > 0 && (
+        {keptCount > 0 && (
           <Entry
             to={paths.downloaded}
             name={t.nav.downloaded}
             kind="downloaded"
             tracks={downloaded}
-            sub={t.common.tracks(downloaded.length)}
+            sub={t.common.tracks(keptCount)}
           />
         )}
         {playlists.map((p) => (
