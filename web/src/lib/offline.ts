@@ -37,6 +37,12 @@ export async function drop(id: string): Promise<void> {
   await (await store()).delete(urlOf(id));
 }
 
+/** Removes every stored track. */
+export async function dropAll(): Promise<void> {
+  if (!offlineSupported()) return;
+  await caches.delete(CACHE);
+}
+
 /** The stored audio for a track, or undefined when it is not kept. */
 export async function read(id: string): Promise<Blob | undefined> {
   if (!offlineSupported()) return undefined;

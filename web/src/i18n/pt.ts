@@ -318,6 +318,12 @@ export const pt: Messages = {
     storageBody: "As faixas guardadas tocam sem conexão. O navegador pode apagá-las se faltar espaço.",
     storagePersist: "Pedir para mantê-las",
     storagePersistRefused: "O navegador não reservou o espaço — as faixas guardadas ainda podem ser apagadas se faltar espaço.",
+    clearDownloads: "Limpar downloads",
+    clearDownloadsTitle: "Limpar cópias offline?",
+    clearDownloadsBody: (tracks, size) =>
+      `${tracks} (${size}) serão removidas deste dispositivo. Você pode baixá-las de novo depois.`,
+    clearDownloadsConfirm: "Limpar",
+    downloadsCleared: "Cópias offline removidas",
     storagePersisted: "O armazenamento do navegador é persistente",
     appearance: "Aparência",
     theme: "Tema",

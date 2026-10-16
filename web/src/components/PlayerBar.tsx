@@ -6,6 +6,7 @@ import { useUi } from "../stores/ui";
 import { Artwork } from "./Artwork";
 import { FavoriteButton, ModeSwitch, Scrubber, Transport, Volume } from "./Controls";
 import { IconButton } from "./IconButton";
+import { OfflineTrackButton } from "./OfflineTrackButton";
 
 /** Desktop and tablet player: a floating island under the content. */
 export function PlayerBar() {
@@ -39,6 +40,7 @@ export function PlayerBar() {
                 </p>
               </div>
               <FavoriteButton track={track} size="sm" />
+              <OfflineTrackButton track={track} size="sm" />
             </>
           ) : (
             <p className="truncate pl-1 text-sm text-fg-3">{t.player.nothingPlaying}</p>

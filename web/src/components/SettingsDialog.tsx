@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { LANGUAGES, useI18n, useT, type Lang } from "../i18n";
 import type { Channel } from "../lib/api";
 import { cn } from "../lib/format";
-import { formatBytes, usage as offlineUsage } from "../lib/offline";
+import { dropAll, formatBytes, usage as offlineUsage } from "../lib/offline";
 import { useSystem } from "../stores/system";
 import { toast, useUi } from "../stores/ui";
 import { BackupSection } from "./BackupSection";
@@ -78,6 +78,7 @@ function Dependency({ name, role, path, fix }: { name: string; role: string; pat
 function StorageSection() {
   const t = useT();
   const open = useUi((s) => s.settingsOpen);
+  const [confirm, setConfirm] = useState(false);
   const [data, setData] = useState<{
     offline: { bytes: number; count: number };
     quota?: { usage: number; quota: number };
@@ -97,54 +98,96 @@ function StorageSection() {
     if (open) void refresh();
   }, [open, refresh]);
 
+  const clear = async () => {
+    setConfirm(false);
+    await dropAll();
+    await refresh();
+    toast(t.settings.downloadsCleared);
+  };
+
   const canPersist = typeof navigator.storage?.persist === "function";
+  const count = data?.offline.count ?? 0;
+  const size = formatBytes(data?.offline.bytes ?? 0);
 
   return (
-    <section className="flex flex-col gap-2">
-      <h3 className="flex items-center gap-1.5 text-xs font-medium text-fg-3">
-        <DownloadSimpleIcon size={14} /> {t.settings.storage}
-      </h3>
-      <div className="flex flex-col gap-2 rounded-[16px] bg-surface-1 p-4 ring-1 ring-line">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-sm font-medium">{t.settings.offlineAudio}</span>
-          <span className="font-mono text-[13px] text-fg-2 tabular-nums">
-            {!data
-              ? t.settings.checking
-              : data.offline.count
-                ? `${t.common.tracks(data.offline.count)} · ${formatBytes(data.offline.bytes)}`
-                : t.settings.offlineNone}
-          </span>
-        </div>
-        {!!data?.quota?.quota && (
+    <>
+      <section className="flex flex-col gap-2">
+        <h3 className="flex items-center gap-1.5 text-xs font-medium text-fg-3">
+          <DownloadSimpleIcon size={14} /> {t.settings.storage}
+        </h3>
+        <div className="flex flex-col gap-2 rounded-[16px] bg-surface-1 p-4 ring-1 ring-line">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-sm font-medium">{t.settings.storageUsed}</span>
+            <span className="text-sm font-medium">{t.settings.offlineAudio}</span>
             <span className="font-mono text-[13px] text-fg-2 tabular-nums">
-              {formatBytes(data.quota.usage)} / {formatBytes(data.quota.quota)}
+              {!data
+                ? t.settings.checking
+                : count
+                  ? `${t.common.tracks(count)} · ${size}`
+                  : t.settings.offlineNone}
             </span>
           </div>
-        )}
-        <p className="text-xs text-fg-3">{t.settings.storageBody}</p>
-        {canPersist &&
-          (data?.persisted ? (
-            <p className="flex items-center gap-1.5 text-xs text-accent-text">
-              <CheckCircleIcon size={14} weight="fill" /> {t.settings.storagePersisted}
-            </p>
-          ) : (
+          {!!data?.quota?.quota && (
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-sm font-medium">{t.settings.storageUsed}</span>
+              <span className="font-mono text-[13px] text-fg-2 tabular-nums">
+                {formatBytes(data.quota.usage)} / {formatBytes(data.quota.quota)}
+              </span>
+            </div>
+          )}
+          <p className="text-xs text-fg-3">{t.settings.storageBody}</p>
+          {canPersist &&
+            (data?.persisted ? (
+              <p className="flex items-center gap-1.5 text-xs text-accent-text">
+                <CheckCircleIcon size={14} weight="fill" /> {t.settings.storagePersisted}
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  void navigator.storage.persist().then((granted) => {
+                    if (!granted) toast(t.settings.storagePersistRefused);
+                    void refresh();
+                  })
+                }
+                className="h-9 self-start rounded-full bg-surface-3 px-4 text-[13px] font-medium transition-colors hover:bg-surface-4"
+              >
+                {t.settings.storagePersist}
+              </button>
+            ))}
+          {count > 0 && (
             <button
               type="button"
-              onClick={() =>
-                void navigator.storage.persist().then((granted) => {
-                  if (!granted) toast(t.settings.storagePersistRefused);
-                  void refresh();
-                })
-              }
-              className="h-9 self-start rounded-full bg-surface-3 px-4 text-[13px] font-medium transition-colors hover:bg-surface-4"
+              onClick={() => setConfirm(true)}
+              className="h-9 self-start rounded-full px-4 text-[13px] font-medium text-danger ring-1 ring-danger/40 transition-colors hover:bg-danger/10"
             >
-              {t.settings.storagePersist}
+              {t.settings.clearDownloads}
             </button>
-          ))}
-      </div>
-    </section>
+          )}
+        </div>
+      </section>
+
+      <Modal open={confirm} onClose={() => setConfirm(false)} title={t.settings.clearDownloadsTitle}>
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-fg-2">{t.settings.clearDownloadsBody(t.common.tracks(count), size)}</p>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirm(false)}
+              className="h-11 rounded-full bg-surface-3 px-5 text-sm font-medium transition-colors hover:bg-surface-4"
+            >
+              {t.common.cancel}
+            </button>
+            <button
+              type="button"
+              onClick={() => void clear()}
+              className="h-11 rounded-full bg-danger/15 px-5 text-sm font-semibold text-danger transition-transform active:scale-[0.98]"
+            >
+              {t.settings.clearDownloadsConfirm}
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }
 

@@ -324,6 +324,12 @@ export const en = {
     storageBody: "Kept tracks play without a connection. The browser may clear them if space runs short.",
     storagePersist: "Ask to keep them",
     storagePersistRefused: "The browser wouldn't reserve the space — kept tracks can still be cleared if it runs short.",
+    clearDownloads: "Clear downloads",
+    clearDownloadsTitle: "Clear offline copies?",
+    clearDownloadsBody: (tracks: string, size: string) =>
+      `${tracks} (${size}) will be removed from this device. You can download them again later.`,
+    clearDownloadsConfirm: "Clear",
+    downloadsCleared: "Offline copies cleared",
     storagePersisted: "Browser storage is persistent",
     appearance: "Appearance",
     theme: "Theme",

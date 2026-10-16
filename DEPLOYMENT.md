@@ -44,7 +44,10 @@ cannot silently drop them. Re-check them after any upstream update:
 | `web/src/components/OfflineButton.tsx` | keep/release a whole collection for offline play |
 | `web/src/views/Collection.tsx` | the offline button on Playlists, Favorites and History |
 | `web/src/components/TrackMenu.tsx` | per-track keep/release entry in the track menu |
-| `web/src/components/SettingsDialog.tsx` | storage readout (offline audio, quota, persistence) |
+| `web/src/components/OfflineTrackButton.tsx` | keep/release button on the Now Playing screen and the player bar |
+| `web/src/components/NowPlaying.tsx` | that button beside the favourite in every track heading |
+| `web/src/components/PlayerBar.tsx` | and in the desktop player bar |
+| `web/src/components/SettingsDialog.tsx` | storage readout (offline audio, quota, persistence) and clear-downloads |
 
 ## Audio path: progressive remux (do not "simplify" this away)
 
@@ -90,7 +93,9 @@ server-side part is the progressive remux that every play already uses.
 | Piece | Role |
 |---|---|
 | `web/src/lib/offline.ts` | the store — Cache Storage bucket `musike-offline`, keyed by the stream URL |
-| `web/src/components/OfflineButton.tsx` | button, per-track progress, and release |
+| `web/src/components/OfflineButton.tsx` | keep/release a whole collection, from the collection header |
+| `web/src/components/OfflineTrackButton.tsx` | keep/release one track, beside the favourite on the player surfaces and in the track menu |
+| `web/src/components/SettingsDialog.tsx` | storage readout, persistence request, and clear-downloads |
 | `web/src/player/player.ts` | `load()` prefers a warmed (next track) or kept blob over the stream URL |
 
 Sizing is estimated at about 1 MB per minute (YouTube's 128 kbps audio) and shown on the button
