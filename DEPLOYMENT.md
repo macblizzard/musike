@@ -147,7 +147,21 @@ highlights the current line when lrclib has the timing, falling back to plain te
 - lrclib rate-limits by IP and asks callers to identify themselves, so requests carry a `musike/…`
   User-Agent. Dozens of lookups at once will draw 503s; ordinary listening will not.
 
-## Commands
+## Remotes
+
+This checkout is the live deployment, so it must never be pulled from upstream over these patches:
+
+- `origin` — `git@github.com:macblizzard/musike.git`, a **private** copy of the project carrying these
+  patches. Push here. It authenticates with a repo-local deploy key (`/root/.ssh/musike_deploy`,
+  write access, wired through `core.sshCommand` in this repository's config), so no token is stored
+  on this host.
+- `upstream` — `https://github.com/Ernani1234/musike.git`, the original project (MIT, public). Fetch
+  only: we hold pull permission there, not push.
+
+The private copy is a standalone repository rather than a linked fork — GitHub drops the fork
+relationship when a fork of a public repository is made private — so the divergence from upstream
+lives in git rather than on the website. `git describe` reads `v1.2.0-10-g<sha>`: ten commits past
+the last upstream tag.
 
 ```bash
 cd /opt/stacks/musike
