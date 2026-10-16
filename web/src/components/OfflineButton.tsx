@@ -4,6 +4,7 @@ import { useT } from "../i18n";
 import { approxBytes, drop, formatBytes, keep, keptIds, offlineSupported } from "../lib/offline";
 import type { Track } from "../lib/types";
 import { toast } from "../stores/ui";
+import { useOffline } from "../stores/offline";
 import { IconButton } from "./IconButton";
 
 /** Keeps a whole collection available offline, or releases it again. */
@@ -27,7 +28,7 @@ export function OfflineButton({ tracks }: { tracks: Track[] }) {
 
   const save = async () => {
     const have = await keptIds();
-    const missing = ids.filter((id) => !have.has(id));
+    const missing = tracks.filter((tr) => tr.id && !have.has(tr.id));
     if (!missing.length) return;
     setBusy({ done: 0, total: missing.length });
     let failed = 0;
@@ -41,6 +42,7 @@ export function OfflineButton({ tracks }: { tracks: Track[] }) {
     }
     setBusy(null);
     await refresh();
+    await useOffline.getState().refresh();
     const t = useT();
     if (failed) toast(t.offline.someFailed(failed, missing.length), "error");
     else toast(t.offline.saved(missing.length));
@@ -54,6 +56,7 @@ export function OfflineButton({ tracks }: { tracks: Track[] }) {
     }
     setBusy(null);
     await refresh();
+    await useOffline.getState().refresh();
     toast(useT().offline.removed);
   };
 

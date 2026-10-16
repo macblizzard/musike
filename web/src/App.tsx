@@ -18,6 +18,7 @@ import { cn } from "./lib/format";
 import { legacyRedirect, NOW_PLAYING_HASH, paths } from "./lib/routes";
 import { usePlayer } from "./player/player";
 import { useLibrary } from "./stores/library";
+import { useOffline } from "./stores/offline";
 import { openSettings, useSystem } from "./stores/system";
 import { toast, useUi } from "./stores/ui";
 import Artist from "./views/Artist";
@@ -45,7 +46,11 @@ export default function App() {
   useShortcuts();
 
   useEffect(() => {
-    void loadLibrary();
+    // Offline state is read after the library, so tracks kept before metadata was stored are recovered from it.
+    void (async () => {
+      await loadLibrary();
+      await useOffline.getState().refresh();
+    })();
   }, [loadLibrary]);
 
   // Check yt-dlp shortly after start and say so once if something needs doing.
@@ -127,6 +132,7 @@ export default function App() {
               <Route path={paths.library} element={<Library />} />
               <Route path={paths.favorites} element={<Collection kind="favorites" />} />
               <Route path={paths.history} element={<Collection kind="history" />} />
+              <Route path={paths.downloaded} element={<Collection kind="downloaded" />} />
               <Route path="/playlist/:id" element={<Collection kind="playlist" />} />
               <Route path="*" element={<Home />} />
             </Routes>

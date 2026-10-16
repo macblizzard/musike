@@ -9,6 +9,7 @@ import { paths } from "../lib/routes";
 import type { Track } from "../lib/types";
 import { IconButton } from "../components/IconButton";
 import { useLibrary } from "../stores/library";
+import { useOffline } from "../stores/offline";
 import { useUi } from "../stores/ui";
 
 function Entry({ to, name, kind, tracks, sub }: { to: string; name: string; kind: CoverKind; tracks: Track[]; sub: string }) {
@@ -35,6 +36,7 @@ function Entry({ to, name, kind, tracks, sub }: { to: string; name: string; kind
 
 export default function Library() {
   const { favorites, playlists, history, createPlaylist } = useLibrary();
+  const downloaded = useOffline((s) => s.tracks);
   const [creating, setCreating] = useState(false);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const navigate = useNavigate();
@@ -64,6 +66,15 @@ export default function Library() {
       <ul className="grid grid-cols-1 gap-1 px-2 pt-2 md:grid-cols-3 md:gap-2 md:px-4 lg:grid-cols-4 2xl:grid-cols-6">
         <Entry to={paths.favorites} name={t.nav.favorites} kind="favorites" tracks={favorites} sub={t.common.tracks(favorites.length)} />
         <Entry to={paths.history} name={t.nav.recentlyPlayed} kind="history" tracks={history} sub={t.common.tracks(history.length)} />
+        {downloaded.length > 0 && (
+          <Entry
+            to={paths.downloaded}
+            name={t.nav.downloaded}
+            kind="downloaded"
+            tracks={downloaded}
+            sub={t.common.tracks(downloaded.length)}
+          />
+        )}
         {playlists.map((p) => (
           <Entry
             key={p.id}

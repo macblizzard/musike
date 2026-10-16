@@ -42,7 +42,9 @@ cannot silently drop them. Re-check them after any upstream update:
 | `web/src/components/Artwork.tsx` | treat YouTube's 120x120 stand-in thumbnail as a failure so the fallback is used |
 | `web/src/lib/offline.ts` | offline store — collected audio in Cache Storage, keyed by stream URL |
 | `web/src/components/OfflineButton.tsx` | keep/release a whole collection for offline play |
-| `web/src/views/Collection.tsx` | the offline button on Playlists, Favorites and History |
+| `web/src/views/Collection.tsx` | the offline button on every collection, and the `downloaded` kind |
+| `web/src/stores/offline.ts` | the offline store — one source of truth for every offline surface |
+| `web/src/views/Library.tsx` | the Downloaded entry in the Library |
 | `web/src/components/TrackMenu.tsx` | per-track keep/release entry in the track menu |
 | `web/src/components/OfflineTrackButton.tsx` | keep/release button on the Now Playing screen and the player bar |
 | `web/src/components/NowPlaying.tsx` | that button beside the favourite in every track heading |
@@ -96,12 +98,19 @@ server-side part is the progressive remux that every play already uses.
 | `web/src/components/OfflineButton.tsx` | keep/release a whole collection, from the collection header |
 | `web/src/components/OfflineTrackButton.tsx` | keep/release one track, beside the favourite on the player surfaces and in the track menu |
 | `web/src/components/SettingsDialog.tsx` | storage readout, persistence request, and clear-downloads |
+| `web/src/stores/offline.ts` | the store every surface reads, so keeping or releasing a track updates all of them at once |
+| `web/src/views/Collection.tsx` | the `downloaded` kind — the Library's Downloaded collection |
 | `web/src/player/player.ts` | `load()` prefers a warmed (next track) or kept blob over the stream URL |
 
 Sizing is estimated at about 1 MB per minute (YouTube's 128 kbps audio) and shown on the button
 before anything starts, so a big collection is not a surprise. Copies are never evicted
 automatically — releasing the collection deletes them. iOS caps PWA storage and can clear it under
 pressure, so treat this as a cache, not an archive.
+
+The Library lists a Downloaded entry whenever anything is held, and it opens the same collection
+layout as the rest. The tracks themselves are stored beside their audio, under a `?musike-meta`
+key, so the collection lists what is held without asking the network for anything; a track kept
+before that metadata existed is filled in from the library, so older downloads still appear.
 
 ## Commands
 
