@@ -9,6 +9,7 @@ import { useT } from "../i18n";
 import { paths } from "../lib/routes";
 import type { Track } from "../lib/types";
 import { usePlayer } from "../player/player";
+import { useAppearance } from "../stores/appearance";
 import { useLibrary } from "../stores/library";
 
 function Shortcut({ to, label, tracks, cover }: { to: string; label: string; tracks: Track[]; cover: ReactNode }) {
@@ -55,6 +56,7 @@ export default function Home() {
   const playList = usePlayer((s) => s.playList);
   const navigate = useNavigate();
   const t = useT();
+  const show = useAppearance();
   const empty = status === "ready" && !favorites.length && !playlists.length && !history.length;
 
   return (
@@ -88,7 +90,7 @@ export default function Home() {
 
       {!empty && status === "ready" && (
         <div className="flex flex-col gap-10">
-          <div className="grid grid-cols-2 gap-2 px-4 md:px-6 lg:grid-cols-3 2xl:grid-cols-4">
+          {show.homeShortcuts && <div className="grid grid-cols-2 gap-2 px-4 md:px-6 lg:grid-cols-3 2xl:grid-cols-4">
             <Shortcut
               to={paths.favorites}
               label={t.nav.favorites}
@@ -118,9 +120,9 @@ export default function Home() {
                 cover={<Artwork src={p.tracks[0]?.thumb} className="size-full" />}
               />
             ))}
-          </div>
+          </div>}
 
-          {history.length > 0 && (
+          {show.homeRecent && history.length > 0 && (
             <Section
               title={t.nav.recentlyPlayed}
               action={
@@ -137,7 +139,7 @@ export default function Home() {
             </Section>
           )}
 
-          {favorites.length > 0 && (
+          {show.homeFavorites && favorites.length > 0 && (
             <Section
               title={t.home.yourFavorites}
               action={

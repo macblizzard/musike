@@ -2,7 +2,7 @@ import type { Innertube } from "youtubei.js";
 import { isLang, msg, type Lang } from "./i18n.js";
 import { sized, text, toTrack, withClient } from "./search.js";
 import type { Track } from "./types.js";
-import { HttpError } from "./types.js";
+import { HttpError, VIDEO_ID } from "./types.js";
 
 export interface Genre {
   /** YouTube Music's opaque "params" for the genre page. */
@@ -29,13 +29,41 @@ export interface GenrePage {
   tracks: Track[];
 }
 
+/** An album or single as a cover in a list (artist page, search). */
+export interface AlbumCard {
+  id: string;
+  title: string;
+  /** Empty on an artist's own page, where it goes without saying. */
+  artist: string;
+  year: string;
+  thumb: string;
+  art: string;
+}
+
 export interface ArtistPage {
   id: string;
   name: string;
   description: string;
   banner: string;
   tracks: Track[];
+  albums: AlbumCard[];
+  singles: AlbumCard[];
 }
+
+export interface AlbumPage {
+  id: string;
+  title: string;
+  artist: string;
+  artistId: string | null;
+  /** YouTube Music's own lines, in the request's language: "Album • 1991", "13 songs • 49 minutes". */
+  kind: string;
+  info: string;
+  thumb: string;
+  art: string;
+  tracks: Track[];
+}
+
+export const ALBUM_ID = /^MPRE[\w-]{6,60}$/;
 
 export const GENRE_ID = /^[\w-]{8,120}={0,2}$/;
 export const ARTIST_ID = /^UC[\w-]{22}$/;
@@ -261,6 +289,36 @@ export async function genreArtists(id: string, offset: number, lang: Lang): Prom
 }
 
 /** An artist's most played songs (the "Top songs" shelf, expanded to its full list). */
+function albumCard(item: any): AlbumCard | null {
+  const id = typeof item?.id === "string" ? item.id : "";
+  if (!ALBUM_ID.test(id)) return null;
+  const subtitle = text(item.subtitle);
+  const artists: string[] = (item.artists ?? []).map((a: { name?: string }) => text(a?.name)).filter(Boolean);
+  return {
+    id,
+    title: text(item.title),
+    artist: artists.join(", ") || text(item.author?.name),
+    year: String(item.year ?? subtitle.match(/\b(19|20)\d\d\b/)?.[0] ?? ""),
+    ...imagesOf(item),
+  };
+}
+
+const albumCards = (items: any[]) => items.map(albumCard).filter((a): a is AlbumCard => !!a && !!a.title);
+
+/** Every album of an artist: the page shows ten, its "more" link opens the whole discography. */
+async function allAlbums(shelf: any, lang: Lang): Promise<AlbumCard[]> {
+  const shown = albumCards(itemsOf(shelf));
+  const more = shelf?.header?.more_content?.endpoint?.payload;
+  if (!more?.browseId) return shown;
+  try {
+    const page = await withClient((yt) => browse(yt, { browseId: more.browseId, params: more.params }), lang);
+    const all = albumCards(page.contents_memo?.get("MusicTwoRowItem") ?? []);
+    return all.length >= shown.length ? all : shown;
+  } catch {
+    return shown;
+  }
+}
+
 const artistPage = cached(30 * MINUTE, async (key): Promise<ArtistPage> => {
   const { lang, id } = parseKey(key);
   const page = await withClient((yt) => yt.music.getArtist(id), lang).catch(() => {
@@ -268,13 +326,16 @@ const artistPage = cached(30 * MINUTE, async (key): Promise<ArtistPage> => {
   });
   const header: any = page.header;
   const shelf: any = page.sections.find((s) => s.type === "MusicShelf");
+  // Album shelves are told apart by what they hold, not by their (translated) titles: albums come first, then singles.
+  const releaseShelves: any[] = page.sections.filter((s: any) => itemsOf(s).some((i) => i.item_type === "album"));
   let items: any[] = itemsOf(shelf);
   // The shelf shows 5; its "show all" link is a playlist with the full ranking.
   const fullList = shelf?.endpoint?.payload?.browseId;
-  if (typeof fullList === "string" && fullList.startsWith("VL")) {
-    const more = await playlistItems(fullList, MAX_HITS * 2, lang);
-    if (more.length) items = more;
-  }
+  const [more, albums] = await Promise.all([
+    typeof fullList === "string" && fullList.startsWith("VL") ? playlistItems(fullList, MAX_HITS * 2, lang) : Promise.resolve([]),
+    releaseShelves[0] ? allAlbums(releaseShelves[0], lang) : Promise.resolve([]),
+  ]);
+  if (more.length) items = more;
   const banner = (header?.thumbnail?.contents ?? header?.thumbnail ?? [])[0]?.url;
   const name = text(header?.title);
   const tracks = uniqueTracks(items.map((i) => toTrack(i, "song"))).slice(0, MAX_HITS);
@@ -285,7 +346,56 @@ const artistPage = cached(30 * MINUTE, async (key): Promise<ArtistPage> => {
     description: text(header?.description),
     banner: typeof banner === "string" && banner.startsWith("https://") ? banner : "",
     tracks,
+    albums,
+    singles: releaseShelves[1] ? albumCards(itemsOf(releaseShelves[1])) : [],
   };
 });
 
 export const artist = (id: string, lang: Lang) => artistPage(keyOf(lang, id));
+
+/** An album's tracks in order. Its tracks carry no cover or artist of their own: they get the album's. */
+const albumPage = cached(60 * MINUTE, async (key): Promise<AlbumPage> => {
+  const { lang, id } = parseKey(key);
+  const album: any = await withClient((yt) => yt.music.getAlbum(id), lang).catch(() => {
+    throw new HttpError(502, msg("albumUnavailable"));
+  });
+  const header = album.header;
+  const title = text(header?.title);
+  const artistRuns: any[] = header?.strapline_text_one?.runs ?? [];
+  const artist = text(header?.strapline_text_one) || text(header?.author?.name);
+  const artistId: string | null = artistRuns.map((r) => r?.endpoint?.payload?.browseId).find((b) => ARTIST_ID.test(b ?? "")) ?? null;
+  const cover = imagesOf(header);
+  const tracks = (album.contents ?? [])
+    .filter((i: any) => typeof i?.id === "string" && VIDEO_ID.test(i.id))
+    .map(
+      (i: any): Track => ({
+        id: i.id,
+        title: text(i.title) || "Untitled",
+        artist: (i.artists ?? []).map((a: { name?: string }) => text(a?.name)).filter(Boolean).join(", ") || artist,
+        album: title,
+        duration: i.duration?.seconds ?? 0,
+        thumb: sized(cover.art, 120),
+        art: cover.art,
+        kind: "song",
+      }),
+    );
+  if (!title && !tracks.length) throw new HttpError(404, msg("albumNotFound"));
+  return {
+    id,
+    title,
+    artist,
+    artistId,
+    kind: text(header?.subtitle),
+    info: text(header?.second_subtitle),
+    thumb: cover.thumb,
+    art: cover.art,
+    tracks,
+  };
+});
+
+export const album = (id: string, lang: Lang) => albumPage(keyOf(lang, id));
+
+export async function searchAlbums(query: string, lang: Lang): Promise<AlbumCard[]> {
+  const result: any = await withClient((yt) => yt.music.search(query, { type: "album" }), lang);
+  return albumCards(itemsOf(result.contents?.[0]));
+}

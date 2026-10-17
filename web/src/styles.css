@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
 @custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
+/* The wide (labelled) rail, from 1280px up unless the user chose a compact sidebar in Settings. */
+@custom-variant wide {
+  @media (width >= 80rem) {
+    &:where(html:not([data-rail="compact"]) *) {
+      @slot;
+    }
+  }
+}
 
 /* Theme tokens. Dark is the default; see docs/design-system.md */
 :root,
@@ -174,6 +182,9 @@
 }
 [data-theme="light"] .grain::after {
   opacity: 0.025;
+}
+[data-texture="off"] .grain::after {
+  display: none;
 }
 
 /* Living brand mark: the equalizer that marks the playing track. */

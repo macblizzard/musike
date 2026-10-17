@@ -1,48 +1,19 @@
 import { getLang, getT } from "../i18n";
-import type { ArtistPage, Genre, GenreArtist, GenrePage, Library, Playlist, Track } from "./types";
+import {
+  ApiError,
+  type Channel,
+  type ErrorCode,
+  type ImportResult,
+  type MusikeApi,
+  type Prepared,
+  type SystemInfo,
+  type SystemJob,
+  type SystemMedia,
+} from "./apiTypes";
+import type { AlbumCard, AlbumPage, ArtistPage, Genre, GenreArtist, GenrePage, Library, Playlist, Track } from "./types";
 
-export type ErrorCode = "tool_missing" | "maybe_outdated" | "bot_check";
-
-export class ApiError extends Error {
-  constructor(public status: number, message: string, public code?: ErrorCode) {
-    super(message);
-  }
-}
-
-export type Channel = "stable" | "nightly";
-
-export interface ImportResult {
-  playlistsAdded: number;
-  playlistsMerged: number;
-  tracksAdded: number;
-  favoritesAdded: number;
-}
-
-export interface SystemJob {
-  kind: "update" | "install";
-  channel: Channel;
-  status: "running" | "done" | "error";
-  startedAt: number;
-  finishedAt?: number;
-  from: string | null;
-  to: string | null;
-  message: string;
-  log: string[];
-}
-
-export interface SystemInfo {
-  ytdlp: {
-    path: string | null;
-    version: string | null;
-    channel: Channel;
-    latest: Record<Channel, string | null>;
-    updateAvailable: boolean;
-  };
-  deno: string | null;
-  ffmpeg: string | null;
-  canInstall: boolean;
-  job: SystemJob | null;
-}
+// The HTTP backend: the Musike server (web app, desktop app). The Android build swaps this module for native/api.ts.
+export * from "./apiTypes";
 
 /** The server answers errors (and YouTube Music answers names, like genres) in the app's language. */
 const LANG_HEADER = "x-musike-lang";
@@ -64,7 +35,7 @@ async function request<T>(path: string, init?: RequestInit & { json?: unknown })
   return body as T;
 }
 
-export const api = {
+export const api: MusikeApi = {
   search: (q: string, type: "song" | "video", signal?: AbortSignal) =>
     request<{ tracks: Track[] }>(`/api/search?q=${encodeURIComponent(q)}&type=${type}`, { signal }).then((r) => r.tracks),
   suggest: (q: string, signal?: AbortSignal) =>
@@ -75,13 +46,16 @@ export const api = {
   genreArtists: (id: string, offset: number) =>
     request<{ artists: GenreArtist[]; hasMore: boolean }>(`/api/genres/${encodeURIComponent(id)}/artists?offset=${offset}`),
   artist: (id: string, signal?: AbortSignal) => request<ArtistPage>(`/api/artists/${encodeURIComponent(id)}`, { signal }),
+  album: (id: string, signal?: AbortSignal) => request<AlbumPage>(`/api/albums/${encodeURIComponent(id)}`, { signal }),
+  searchAlbums: (q: string, signal?: AbortSignal) =>
+    request<{ albums: AlbumCard[] }>(`/api/search/albums?q=${encodeURIComponent(q)}`, { signal }).then((r) => r.albums),
   /** The music video matching a song, or null when YouTube has none. */
   videoFor: (t: Track) =>
     request<{ track: Track | null }>(
       `/api/video-for/${t.id}?${new URLSearchParams({ title: t.title, artist: t.artist, duration: String(t.duration || "") })}`,
     ).then((r) => r.track),
   prepare: (id: string, signal?: AbortSignal) =>
-    request<{ id: string; title: string; duration: number; hasSdVideo: boolean }>(`/api/prepare/${id}`, {
+    request<Prepared>(`/api/prepare/${id}`, {
       method: "POST",
       signal,
     }),
@@ -107,8 +81,25 @@ export const api = {
   updateYtdlp: (channel: Channel) => request<SystemJob>("/api/system/ytdlp", { method: "POST", json: { channel } }),
 };
 
-export const streamUrl = (id: string, kind: "audio" | "video", quality: "sd" | "hd") =>
+/** What a media element plays for a track: here, the server's stream proxy. The Android backend resolves it on the phone. */
+export const streamSource = (id: string, kind: "audio" | "video", quality: "sd" | "hd"): string | Promise<string> =>
   kind === "audio" ? `/api/stream/${id}/audio` : `/api/stream/${id}/video?q=${quality}`;
+
+/** Saves a text file the way this platform does it: a browser download (the desktop app shows "Save as"). */
+export async function saveFile(name: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/** Only the Android app needs its own bridge to the system's media controls. */
+export const systemMedia: SystemMedia | null = null;
+
+/** What this build can do. The Android build has no video yet, no yt-dlp to manage, and retries expired streams. */
+export const capabilities = { video: true, engineSettings: true, retryOnError: false };
 
 /** Media elements hide the HTTP error body; fetch it to show the real reason. */
 export async function explainStreamError(url: string): Promise<{ message: string; code?: ErrorCode }> {

@@ -42,6 +42,8 @@ interface UiState {
   toggleTheme: () => void;
   openPanel: (tab: PanelTab) => void;
   togglePanel: (tab: PanelTab) => void;
+  /** Settings switch for the docked Now Playing panel on wide screens. */
+  setPanelDocked: (open: boolean) => void;
   closePanel: () => void;
   toast: (message: string, tone?: Toast["tone"], action?: ToastAction) => void;
   dismissToast: (id: number) => void;
@@ -108,6 +110,14 @@ export const useUi = create<UiState>((set, get) => ({
     set({ panelOpen: open, panelTab: tab });
   },
   closePanel: () => set({ drawerOpen: false }),
+  setPanelDocked: (open) => {
+    try {
+      localStorage.setItem("musike:panel", open ? "open" : "closed");
+    } catch {
+      /* private mode */
+    }
+    set({ panelOpen: open });
+  },
 
   toast: (message, tone = "info", action) => {
     const id = ++toastSeq;

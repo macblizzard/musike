@@ -18,6 +18,17 @@
         // Before the app loads, so screen readers and the browser see the chosen language right away.
         var l = localStorage.getItem("musike:lang");
         if (l === "en" || l === "pt-BR") document.documentElement.lang = l;
+        // Appearance chosen in Settings, applied before the first paint.
+        var css = localStorage.getItem("musike:accent-css");
+        if (css) {
+          var s = document.createElement("style");
+          s.id = "musike-accent";
+          s.textContent = css;
+          document.head.appendChild(s);
+        }
+        var a = JSON.parse(localStorage.getItem("musike:appearance") || "{}");
+        if (a.compactSidebar === true) document.documentElement.dataset.rail = "compact";
+        if (a.texture === false) document.documentElement.dataset.texture = "off";
       } catch (e) {}
     </script>
   </head>

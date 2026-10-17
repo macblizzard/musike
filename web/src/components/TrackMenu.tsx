@@ -73,7 +73,7 @@ export function TrackMenu() {
   };
 
   const content = menu && (
-    <div role="menu" aria-label={t.trackMenu.actionsFor(menu.track.title)} className="flex flex-col">
+    <div role="menu" aria-label={t.trackMenu.actionsFor(menu.track.title)} data-escape-closes className="flex flex-col">
       <Item icon={<PlayIcon size={18} />} onClick={run(() => usePlayer.getState().playTrack(menu.track))}>
         {t.trackMenu.playNow}
       </Item>

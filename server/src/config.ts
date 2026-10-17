@@ -24,4 +24,6 @@ export const config = {
   /** YouTube Music language when a request doesn't say (the app always does). */
   lang: process.env.MUSIKE_LANG ?? "en",
   location: process.env.MUSIKE_LOCATION ?? "BR",
+  /** HTTP for youtubei.js; the platform's own fetch here (the Android app passes its native one). */
+  fetch: undefined as typeof fetch | undefined,
 };

@@ -1,36 +1,40 @@
-import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { config } from "./config.js";
 import { msg } from "./i18n.js";
 import { HttpError, VIDEO_ID, type Library, type Playlist, type Track } from "./types.js";
 
-const FILE = path.join(config.dataDir, "library.json");
+// No Node-only imports here: the Android app runs this same module, with its own storage.
+
 const HISTORY_LIMIT = 60;
 
+/** Where the library is kept: a file on the server and the desktop app, app storage on Android. */
+export interface LibraryStorage {
+  read(): Promise<string | null>;
+  write(json: string): Promise<void>;
+}
+
+let storage: LibraryStorage | null = null;
 let state: Library | null = null;
 let writeChain: Promise<void> = Promise.resolve();
 
+/** Set once at startup, before any request. */
+export function useLibraryStorage(s: LibraryStorage) {
+  storage = s;
+  state = null;
+}
+
+const randomUUID = () => globalThis.crypto.randomUUID();
+
 async function load(): Promise<Library> {
   if (state) return state;
-  if (existsSync(FILE)) {
-    state = JSON.parse(await readFile(FILE, "utf8")) as Library;
-  } else {
-    state = { favorites: [], playlists: [], history: [] };
-  }
+  if (!storage) throw new Error("Library storage not configured");
+  const json = await storage.read();
+  state = json ? (JSON.parse(json) as Library) : { favorites: [], playlists: [], history: [] };
   return state;
 }
 
-/** Serialized, atomic writes so concurrent requests never corrupt the file. */
+/** Serialized writes so concurrent requests never interleave. */
 function persist(): Promise<void> {
   const snapshot = JSON.stringify(state, null, 2);
-  writeChain = writeChain.then(async () => {
-    await mkdir(config.dataDir, { recursive: true });
-    const tmp = `${FILE}.tmp`;
-    await writeFile(tmp, snapshot, "utf8");
-    await rename(tmp, FILE);
-  });
+  writeChain = writeChain.then(() => storage!.write(snapshot));
   return writeChain;
 }
 

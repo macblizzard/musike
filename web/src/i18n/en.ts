@@ -164,6 +164,8 @@ export const en = {
     aTrack: "this track",
     browserCantPlay: "The browser couldn't play this format.",
     serverDown: "Can't reach the Musike server. Is it running?",
+    streamFailed: "YouTube stopped serving this track. Try it again in a moment.",
+    offline: "You're offline. Connect to the internet to play music.",
     httpError: (status: number) => `Error ${status}`,
   },
 
@@ -245,6 +247,7 @@ export const en = {
     idleBody:
       "Search for a song, artist or album. For music videos and live performances, use the Videos tab. You can also paste a YouTube link.",
     exploreGenres: "Browse by genre",
+    albums: "Albums",
   },
 
   batch: {
@@ -299,6 +302,19 @@ export const en = {
     openFailed: "Couldn't open this artist",
     noHits: "No songs found",
     noHitsBody: "YouTube Music doesn't list hits for this artist.",
+    albums: "Albums",
+    singles: "Singles & EPs",
+  },
+
+  album: {
+    fallbackName: "Album",
+    openFailed: "Couldn't open this album",
+    play: (title: string) => `Play ${title}`,
+    shuffle: "Shuffle play",
+    saveAsPlaylist: "Save as playlist",
+    openPlaylist: "Open playlist",
+    noTracks: "No playable tracks",
+    noTracksBody: "YouTube Music doesn't offer this album's tracks here.",
   },
 
   settings: {
@@ -338,6 +354,32 @@ export const en = {
     depMissingAfter: "and restart Musike.",
   },
 
+  customize: {
+    accent: "Accent color",
+    customColor: "Custom color",
+    colors: {
+      volt: "Volt",
+      mint: "Mint",
+      aqua: "Aqua",
+      sky: "Sky",
+      violet: "Violet",
+      pink: "Pink",
+      coral: "Coral",
+      amber: "Amber",
+    },
+    layout: "Layout",
+    panel: "Now playing panel",
+    panelBody: "Docked on the right on wide screens",
+    sidebarPlaylists: "Playlists in the sidebar",
+    compactSidebar: "Compact sidebar",
+    compactSidebarBody: "Icons only, more room for content",
+    albumColumn: "Album column in track lists",
+    texture: "Background texture",
+    home: "Home page",
+    homeShortcuts: "Shortcuts",
+    reset: "Reset to defaults",
+  },
+
   backup: {
     yourData: "Your data",
     body: "Take your playlists, favorites and history to another computer or to the desktop app: export a file here and import it into the other Musike.",
@@ -358,7 +400,7 @@ export const en = {
     mergeBody: "Adds what's missing. Nothing is deleted; playlists with the same name get the new tracks.",
     replaceTitle: "Replace everything",
     replaceBody: "Deletes the current library and makes it exactly like the backup.",
-    applySettings: "Also apply theme, language and player preferences",
+    applySettings: "Also apply appearance, language and player preferences",
     confirmReplace: 'This deletes your current playlists, favorites and history. Tap "Replace now" to confirm.',
     replace: "Replace",
     replaceNow: "Replace now",

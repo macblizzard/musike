@@ -158,6 +158,8 @@ export const pt: Messages = {
     aTrack: "esta faixa",
     browserCantPlay: "O navegador não conseguiu reproduzir este formato.",
     serverDown: "Servidor do Musike inacessível. Ele está rodando?",
+    streamFailed: "O YouTube parou de entregar esta faixa. Tente de novo daqui a pouco.",
+    offline: "Você está sem internet. Conecte-se para ouvir música.",
     httpError: (status) => `Erro ${status}`,
   },
 
@@ -239,6 +241,7 @@ export const pt: Messages = {
     idleBody:
       "Busque por música, artista ou álbum. Para clipes e ao vivo, use a aba Vídeos. Também dá para colar um link do YouTube.",
     exploreGenres: "Explorar por gênero",
+    albums: "Álbuns",
   },
 
   batch: {
@@ -293,6 +296,19 @@ export const pt: Messages = {
     openFailed: "Não deu para abrir este artista",
     noHits: "Nenhuma música encontrada",
     noHitsBody: "O YouTube Music não lista sucessos para este artista.",
+    albums: "Álbuns",
+    singles: "Singles e EPs",
+  },
+
+  album: {
+    fallbackName: "Álbum",
+    openFailed: "Não deu para abrir este álbum",
+    play: (title) => `Tocar ${title}`,
+    shuffle: "Tocar em ordem aleatória",
+    saveAsPlaylist: "Salvar como playlist",
+    openPlaylist: "Abrir playlist",
+    noTracks: "Nenhuma faixa para tocar",
+    noTracksBody: "O YouTube Music não oferece as faixas deste álbum aqui.",
   },
 
   settings: {
@@ -332,6 +348,32 @@ export const pt: Messages = {
     depMissingAfter: "e reinicie o Musike.",
   },
 
+  customize: {
+    accent: "Cor de destaque",
+    customColor: "Cor personalizada",
+    colors: {
+      volt: "Volt",
+      mint: "Menta",
+      aqua: "Água",
+      sky: "Céu",
+      violet: "Violeta",
+      pink: "Rosa",
+      coral: "Coral",
+      amber: "Âmbar",
+    },
+    layout: "Layout",
+    panel: "Painel Tocando agora",
+    panelBody: "Fixo à direita em telas largas",
+    sidebarPlaylists: "Playlists na barra lateral",
+    compactSidebar: "Barra lateral compacta",
+    compactSidebarBody: "Só ícones, mais espaço para o conteúdo",
+    albumColumn: "Coluna de álbum nas listas",
+    texture: "Textura de fundo",
+    home: "Página inicial",
+    homeShortcuts: "Atalhos",
+    reset: "Restaurar padrão",
+  },
+
   backup: {
     yourData: "Seus dados",
     body: "Leve playlists, favoritas e histórico para outro computador ou para o app desktop: exporte um arquivo aqui e importe na outra instância do Musike.",
@@ -352,7 +394,7 @@ export const pt: Messages = {
     mergeBody: "Adiciona o que falta. Nada é apagado; playlists com o mesmo nome ganham as faixas novas.",
     replaceTitle: "Substituir tudo",
     replaceBody: "Apaga a biblioteca atual e deixa exatamente como no backup.",
-    applySettings: "Aplicar também tema, idioma e preferências do player",
+    applySettings: "Aplicar também aparência, idioma e preferências do player",
     confirmReplace: 'Isso apaga suas playlists, favoritas e histórico atuais. Toque em "Substituir agora" para confirmar.',
     replace: "Substituir",
     replaceNow: "Substituir agora",

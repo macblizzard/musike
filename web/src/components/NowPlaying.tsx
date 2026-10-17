@@ -7,7 +7,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "../i18n";
 import { cn } from "../lib/format";
@@ -187,6 +187,13 @@ export function PanelDrawer() {
   const reduce = useReducedMotion();
   const t = useT();
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, close]);
+
   return createPortal(
     <AnimatePresence>
       {open && (
@@ -194,6 +201,7 @@ export function PanelDrawer() {
           <motion.div className="absolute inset-0 bg-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} />
           <motion.aside
             aria-label={t.nowPlaying.panel}
+            data-escape-closes
             initial={reduce ? { opacity: 0 } : { x: "105%" }}
             animate={{ x: 0, opacity: 1 }}
             exit={reduce ? { opacity: 0 } : { x: "105%" }}

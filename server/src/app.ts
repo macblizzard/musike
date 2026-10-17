@@ -2,9 +2,10 @@ import { existsSync } from "node:fs";
 import { createServer } from "node:net";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
-import { ARTIST_ID, artist, GENRE_ID, genre, genreArtists, genres } from "./browse.js";
+import { ALBUM_ID, album, ARTIST_ID, artist, GENRE_ID, genre, genreArtists, genres, searchAlbums } from "./browse.js";
 import { config } from "./config.js";
 import * as library from "./library.js";
+import { fileStorage } from "./libraryFile.js";
 import { findVideoFor, radio, search, suggestions } from "./search.js";
 import { proxyStream, serveFile } from "./stream.js";
 import { langOf, msg, tr } from "./i18n.js";
@@ -40,6 +41,7 @@ export interface RunningServer {
 
 /** Builds the Musike HTTP server (API + web app) and starts listening. */
 export async function startServer(opts: StartOptions = {}): Promise<RunningServer> {
+  library.useLibraryStorage(fileStorage());
   const found = await refreshTools();
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "warn" } });
 
@@ -101,6 +103,17 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
     const { aid } = req.params as { aid: string };
     if (!ARTIST_ID.test(aid)) throw new HttpError(400, msg("invalidArtist"));
     return artist(aid, langOf(req));
+  });
+
+  app.get("/api/albums/:alid", async (req) => {
+    const { alid } = req.params as { alid: string };
+    if (!ALBUM_ID.test(alid)) throw new HttpError(400, msg("invalidAlbum"));
+    return album(alid, langOf(req));
+  });
+
+  app.get("/api/search/albums", async (req) => {
+    const { q } = req.query as { q?: string };
+    return { albums: await searchAlbums(query(q), langOf(req)) };
   });
 
   /** The music video for a song, so "Vídeo" mode can show the clip instead of a still cover. */

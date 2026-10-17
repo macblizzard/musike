@@ -11,7 +11,7 @@ const clients = new Map<string, Promise<Innertube>>();
 function yt(hl: string): Promise<Innertube> {
   let client = clients.get(hl);
   if (!client) {
-    client = Innertube.create({ retrieve_player: false, lang: hl, location: config.location }).catch((err) => {
+    client = Innertube.create({ retrieve_player: false, lang: hl, location: config.location, fetch: config.fetch }).catch((err) => {
       clients.delete(hl);
       throw err;
     });

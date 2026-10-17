@@ -1,118 +1,133 @@
 <div align="center">
 
-<img src="desktop/build/icon.png" width="96" alt="Logo do Musike: três barras de equalizador formando um M" />
+<img src="desktop/build/icon.png" width="96" alt="Musike logo: three equalizer bars forming an M" />
 
 # Musike
 
-**Sua música, sem interrupção.**
+**Your music, uninterrupted.**
 
-Player pessoal que toca qualquer música ou clipe do YouTube, como **áudio** ou **vídeo**, sem anúncios.
-Funciona no navegador, no celular (PWA) e como **app de computador** com instalador.
+A personal music player for YouTube's catalog: any song or music video, as **audio** or **video**, with no ads, no account and no subscription.
+Runs as a **Windows**, **macOS** and **Linux** app, as an **Android** app that needs no computer, in any **browser** (installable PWA) and in **Docker**.
 
-![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-c3ec52?style=flat-square&labelColor=121318)
-![Windows](https://img.shields.io/badge/desktop-Windows-c3ec52?style=flat-square&labelColor=121318)
-![Web e PWA](https://img.shields.io/badge/web-PWA-c3ec52?style=flat-square&labelColor=121318)
+![MIT license](https://img.shields.io/badge/license-MIT-c3ec52?style=flat-square&labelColor=121318)
+![Windows, macOS and Linux](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-c3ec52?style=flat-square&labelColor=121318)
+![Android](https://img.shields.io/badge/mobile-Android-c3ec52?style=flat-square&labelColor=121318)
+![Web and PWA](https://img.shields.io/badge/web-PWA-c3ec52?style=flat-square&labelColor=121318)
+![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-c3ec52?style=flat-square&labelColor=121318)
 ![TypeScript](https://img.shields.io/badge/TypeScript-100%25-c3ec52?style=flat-square&labelColor=121318)
 
-<img src="docs/screenshots/desktop-app.png" alt="App desktop do Musike tocando um clipe no painel lateral" width="900" />
+<img src="docs/screenshots/home.jpg" alt="Musike playing Radiohead, with playlists, recently played and the Now Playing panel" width="900" />
+
+**[Download for Windows, macOS, Linux and Android](https://github.com/Ernani1234/musike/releases/latest)** · [Run with Docker](#option-5-docker) · [Run from source](#option-6-node-server--browser)
 
 </div>
 
 ---
 
-## Sumário
+## Contents
 
-- [O que é](#o-que-é)
-- [Recursos](#recursos)
-- [Capturas de tela](#capturas-de-tela)
-- [Como funciona](#como-funciona)
-- [Instalação](#instalação)
-- [Levar sua biblioteca para outra instância (backup)](#levar-sua-biblioteca-para-outra-instância-backup)
-- [Atalhos de teclado](#atalhos-de-teclado)
-- [Configuração](#configuração)
+- [What it is](#what-it-is)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [How it works](#how-it-works)
+- [Installation](#installation)
+- [Moving your library (backup)](#moving-your-library-backup)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [Configuration](#configuration)
 - [API](#api)
-- [Estrutura do projeto](#estrutura-do-projeto)
-- [Solução de problemas](#solução-de-problemas)
+- [Project structure](#project-structure)
+- [Troubleshooting](#troubleshooting)
 - [Roadmap](#roadmap)
-- [Aviso legal](#aviso-legal)
-- [Licença](#licença)
+- [Legal notice](#legal-notice)
+- [License](#license)
 
-## O que é
+## What it is
 
-O Musike nasceu da ideia dos antigos bots de música do Discord: um servidor que busca o áudio direto do YouTube e o entrega pronto para tocar. Em vez de um chat, a interface é um player completo, rápido e simples, com cara de app moderno e um toque gamer.
+Musike started from the idea behind the old Discord music bots: a server that fetches audio straight from YouTube and hands it over ready to play. Instead of a chat, the interface is a full music player: fast, simple, and built to feel like a modern app.
 
-- **Sem anúncios e sem conta:** o servidor obtém o stream original com o [yt-dlp](https://github.com/yt-dlp/yt-dlp) e repassa os bytes ao player.
-- **Música ou clipe:** troque entre Áudio e Vídeo a qualquer momento, do mesmo ponto da faixa. Para músicas, o Musike encontra o clipe oficial do artista.
-- **Em qualquer tela:** layout pensado para celulares de todos os tamanhos, tablets, notebooks e monitores grandes.
-- **Seu, de verdade:** roda no seu computador. Playlists e favoritas ficam num arquivo local que você pode exportar e levar para qualquer outra instância.
+- **No ads, no account:** the server gets the original stream with [yt-dlp](https://github.com/yt-dlp/yt-dlp) and passes the bytes to the player.
+- **Song or music video:** switch between Audio and Video at any time, from the same point in the track. For songs, Musike finds the artist's official music video.
+- **Any screen:** designed for phones of every size, tablets, laptops and big monitors.
+- **Yours:** it runs on your own computer. Playlists and favorites live in a local file you can export and take to any other Musike.
 
-## Recursos
+## Features
 
-**Ouvir**
-- Busca no YouTube Music com abas **Músicas** e **Vídeos** e sugestões enquanto você digita
-- Cole um **link do YouTube** na busca para tocar direto
-- **Explorar por gênero:** o filtro **Gêneros** na busca abre os gêneros do YouTube Music (Rock, Sertanejo, MPB, Metal...). Cada um mostra as bandas e artistas do gênero (toque em um para ver os maiores sucessos) ou todas as músicas numa lista só, com seleção para tocar, favoritar ou mandar para uma playlist
-- **Buscar lista:** escreva várias músicas separadas por vírgula ("Evidências, Trem-Bala, ..."); o Musike busca cada uma, já seleciona o melhor resultado (dá para trocar) e você toca, favorita ou manda as selecionadas para uma playlist nova ou existente
-- Fila com tocar a seguir, aleatório e repetir (fila ou faixa)
-- **Rádio automático:** quando a fila acaba, continua com músicas parecidas
-- Avanço e retrocesso instantâneos (streaming com HTTP Range) e próxima faixa pré-carregada
+**Listen**
+- Search YouTube Music with **Songs**, **Videos** and **Albums** tabs, with suggestions as you type
+- Paste a **YouTube link** to play it right away
+- **Browse by genre:** the **Genres** button opens YouTube Music's genres (Rock, Pop, Hip-hop, Indie, Metal, Jazz…). See each genre's bands and artists (with "Load more") or all its songs in one list
+- **Artists:** greatest hits, plus every album and single
+- **Albums:** open any album and play it in its original order, shuffle it, or save it as a playlist in one click
+- **Search a list:** type several songs separated by commas ("Bohemian Rhapsody, Hotel California, …"). Musike finds each one, picks the best match (you can swap it) and lets you play, favorite or send them all to a playlist
+- Queue with play next, shuffle and repeat (queue or track)
+- **Autoplay radio:** when the queue ends, it keeps going with similar songs
+- Instant seeking (HTTP Range streaming) and the next track preloaded
 
-**Vídeo**
-- Modo Vídeo no painel lateral, na tela cheia do celular ou num mini player flutuante
-- **Clipe oficial** encontrado automaticamente para faixas da aba Músicas (só aceita o canal do próprio artista)
-- **Modo cinema:** maximize o clipe (botão, duplo clique ou tecla `F`), com controles que somem enquanto você assiste e tela cheia de verdade
-- Qualidade SD (começa rápido) ou HD 720p (com cache local)
+**Video**
+- Video mode in the side panel, full screen on phones, or in a floating mini player
+- **Official music video** found automatically for songs (only from the artist's own channel)
+- **Cinema mode:** maximize the video (button, double-click or `F`), with controls that fade while you watch, and true full screen
+- SD quality (starts fast) or HD 720p (cached locally)
 
-**Biblioteca**
-- Playlists, Favoritas e histórico de tocadas recentemente
-- **Backup em arquivo** para levar tudo a outra instância: juntar ou substituir, com prévia antes de importar
+**Library**
+- Playlists, Favorites and recently played history
+- Select many tracks at once to play, favorite or add to a playlist
+- **Backup to a file** to move everything to another Musike: merge or replace, with a preview before importing
 
-**Interface**
-- **Em inglês por padrão, com troca de idioma em Ajustes > Language** (English e Português do Brasil). A escolha vale por aparelho e traduz também as mensagens do servidor e os nomes de gêneros e biografias que vêm do YouTube Music
-- Tema escuro e claro, layout responsivo do celular de 320 px ao monitor ultrawide
-- Controles na tela de bloqueio, fones e teclas de mídia (Media Session)
-- Retoma a fila e a posição de onde você parou
-- Instalável como app no celular (PWA) e atalhos de teclado no computador
+**Make it yours**
+- **English** and **Brazilian Portuguese**, switchable in Settings (per device). Server messages and the genre names and bios that come from YouTube Music follow the same language
+- Dark and light themes, and **any accent color**: 8 presets or a custom one. Musike adjusts text shades so they stay readable in both themes
+- Show or hide panels: the Now Playing panel, playlists in the sidebar, a compact icons-only sidebar, the album column, the background texture, and each section of the Home page
+- Responsive from 320 px phones to ultrawide monitors; lock screen, headphone and media key controls (Media Session); picks up the queue where you left off
 
-**App desktop (Windows)**
-- Janela nativa com barra de título própria, sem navegador
-- Instalador que cria o atalho na área de trabalho
-- Baixa e mantém sozinho as ferramentas de que precisa (yt-dlp, Deno, FFmpeg)
+**Desktop app (Windows, macOS and Linux)**
+- Native window with its own title bar, no browser
+- Windows installer with desktop and Start menu shortcuts; macOS app for Apple Silicon and Intel; Linux `.deb` and AppImage for x64 and arm64
+- Updating keeps your library (it's backed up automatically before each update)
+- Downloads and maintains the tools it needs (yt-dlp, Deno, FFmpeg)
 
-**Manutenção**
-- Tela **Ajustes** mostra a versão do yt-dlp, avisa quando há atualização e atualiza com um clique (canal Estável ou Nightly)
-- Erros de reprodução oferecem o botão "Atualizar" direto no aviso
+**Android app**
+- **Standalone:** no computer, no server. The phone searches YouTube Music and plays the audio straight from YouTube
+- Same app as on the computer: search, genres, artists, albums, Search a list, playlists, favorites, themes and colors
+- Keeps playing with the screen off, with controls in the notification, on the lock screen and on headphones; pauses for calls and when headphones are unplugged
+- Audio only for now (no video mode)
 
-## Capturas de tela
+**Self-hosting**
+- **Docker image** for amd64 and arm64 (Raspberry Pi), with everything inside
+- Open it from any device on your network, or from anywhere with Tailscale
+
+**Maintenance**
+- **Settings** shows the yt-dlp version, tells you when there's an update and updates it in one click (Stable or Nightly channel)
+- Playback errors offer the "Update" button right in the notice
+
+## Screenshots
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/mobile-busca.png" width="260" alt="Busca no celular com mini player" /><br /><sub>Busca e mini player no celular</sub></td>
-    <td align="center"><img src="docs/screenshots/mobile-tocando.png" width="260" alt="Tela Tocando agora no celular" /><br /><sub>Tocando agora</sub></td>
+    <td align="center"><img src="docs/screenshots/album.jpg" width="440" alt="Nevermind album page with its tracks in order" /><br /><sub>Albums, in their original order</sub></td>
+    <td align="center"><img src="docs/screenshots/genre.jpg" width="440" alt="Indie and alternative genre with its artists" /><br /><sub>Browse by genre</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/cinema.jpg" width="440" alt="Cinema mode playing a music video" /><br /><sub>Cinema mode</sub></td>
+    <td align="center"><img src="docs/screenshots/search-a-list.jpg" width="440" alt="Search a list: six songs found at once" /><br /><sub>Search a list</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/customize.jpg" width="440" alt="Violet accent color with a compact sidebar" /><br /><sub>Your colors and layout</sub></td>
+    <td align="center"><img src="docs/screenshots/mobile.jpg" width="440" alt="Musike on three phone screens" /><br /><sub>On your phone</sub></td>
   </tr>
 </table>
 
-<table>
-  <tr>
-    <td align="center"><img src="docs/screenshots/modo-cinema.png" width="440" alt="Modo cinema com o clipe maximizado" /><br /><sub>Modo cinema</sub></td>
-    <td align="center"><img src="docs/screenshots/backup.png" width="440" alt="Importação de backup com prévia" /><br /><sub>Importar backup com prévia</sub></td>
-  </tr>
-  <tr>
-    <td align="center" colspan="2"><img src="docs/screenshots/atualizar-yt-dlp.png" width="440" alt="Ajustes com atualização do yt-dlp disponível" /><br /><sub>Atualização do yt-dlp em um clique</sub></td>
-  </tr>
-</table>
-
-## Como funciona
+## How it works
 
 ```mermaid
 flowchart LR
-  subgraph Clientes
+  subgraph Clients
     W["Web / PWA<br/>React + Vite"]
-    D["App desktop<br/>Electron"]
+    D["Desktop app<br/>Electron"]
   end
-  subgraph S["Servidor Musike (Fastify)"]
-    API["API REST"]
-    P["Proxy de stream<br/>HTTP Range"]
+  subgraph S["Musike server (Fastify)"]
+    API["REST API"]
+    P["Stream proxy<br/>HTTP Range"]
     L[("library.json")]
   end
   YTM["YouTube Music<br/>youtubei.js"]
@@ -120,236 +135,326 @@ flowchart LR
   YT[("YouTube / googlevideo")]
 
   W --> API
-  D -- "servidor embutido" --> API
-  API -- "busca, sugestões, rádio, clipes" --> YTM
-  API -- "resolve streams, junta HD" --> T
+  D -- "built-in server" --> API
+  API -- "search, genres, artists, albums, radio" --> YTM
+  API -- "resolves streams, merges HD" --> T
   T --> YT
   P --> YT
   API --> L
 ```
 
-1. **Busca:** o servidor consulta o YouTube Music com o [youtubei.js](https://github.com/LuanRT/YouTube.js) (busca, sugestões, rádio e escolha do clipe oficial).
-2. **Reprodução:** o yt-dlp resolve as URLs do stream (áudio AAC, vídeo MP4). Essas URLs ficam presas ao IP de quem as resolveu, então o servidor faz o **proxy** dos bytes, repassando o cabeçalho `Range` para que o avanço seja instantâneo.
-3. **Vídeo HD e clipes sem versão SD:** o yt-dlp baixa e junta vídeo + áudio com FFmpeg, guarda em cache (LRU, 2 GB por padrão) e o servidor entrega o arquivo com suporte a Range.
-4. **Biblioteca:** playlists, favoritas e histórico ficam em `library.json`, gravado de forma atômica.
-5. **Web:** um único elemento `<video>` é movido no DOM entre painel, tela cheia, mini player e modo cinema sem interromper a reprodução.
+1. **Catalog:** the server queries YouTube Music with [youtubei.js](https://github.com/LuanRT/YouTube.js): search, suggestions, genres, artists, albums, radio and picking the official music video.
+2. **Playback:** yt-dlp resolves the stream URLs (AAC audio, MP4 video), running YouTube's player code with Deno. Those URLs are tied to the IP that resolved them, so the server **proxies** the bytes, forwarding the `Range` header so seeking is instant. Nothing is written to disk for audio.
+3. **HD video and videos without an SD version:** yt-dlp downloads and merges video + audio with FFmpeg, keeps it in a cache (least-recently-played first, 2 GB by default) and the server serves the file with Range support.
+4. **Library:** playlists, favorites and history live in `library.json`, written atomically.
 
-## Instalação
+**On Android** there is no server. The app runs Musike's server code itself (catalog and library, from `server/src`) and asks YouTube for the audio stream from the phone, so the stream URL belongs to the phone's own connection and the player reads it directly, without a proxy. Which YouTube client the app uses to get streams is read from [`mobile/streaming.json`](mobile/streaming.json), so it can be adjusted without releasing a new app.
+5. **Web:** a single `<video>` element moves around the page (panel, full screen, mini player, cinema mode) without interrupting playback.
 
-### Opção 1: app de computador (Windows)
+## Installation
 
-Gere o instalador (ou baixe-o na página de Releases, se publicado):
+### Option 1: Windows app
 
-```powershell
-pnpm install
-pnpm installer   # cria desktop\release\Musike-Setup-<versão>.exe
+Download `Musike-Setup-<version>-Windows.exe` from the [latest release](https://github.com/Ernani1234/musike/releases/latest) and run it. The installer:
+
+- installs for the current user only (no administrator needed) and lets you pick the folder;
+- creates **Musike** shortcuts on the desktop and in the Start menu, and opens the app when it's done;
+- uninstalls from Windows Settings > Apps.
+
+On first launch, a screen shows the official tools being downloaded: **yt-dlp** and **Deno** (about 60 MB) and, in the background, **FFmpeg** (about 80 MB, for HD video). Everything lives in `%APPDATA%\Musike`:
+
+| Folder | Contents |
+|---|---|
+| `bin` | Musike's own yt-dlp, Deno and FFmpeg (updatable in Settings) |
+| `data` | `library.json` with playlists, favorites and history |
+| `cache` | HD videos already downloaded |
+| `backups` | copies of the library made at each update |
+
+**To update, just install the new version over the old one.** `%APPDATA%\Musike` is separate from the program folder, and neither updating nor uninstalling deletes it. To be safe, the installer also copies the library to `backups\library-before-install-<version>.json` before replacing the old version, and the app keeps another dated copy on the first launch of each version (the 5 most recent). To restore one, close Musike and copy it over `data\library.json`.
+
+> The installer isn't code-signed yet. On first run Windows shows "Windows protected your PC": click **More info**, then **Run anyway**.
+
+To build the installer yourself: `pnpm install && pnpm installer` (creates `release\Musike-Setup-<version>-Windows.exe`).
+
+### Option 2: macOS app
+
+Download the `.dmg` for your Mac from the [latest release](https://github.com/Ernani1234/musike/releases/latest): `Musike-Setup-<version>-macOS-arm64.dmg` for Apple Silicon (M1 and newer) or `Musike-Setup-<version>-macOS-x64.dmg` for Intel. Open it and drag **Musike** to **Applications**. Requires macOS 12 or newer.
+
+The app isn't notarized by Apple yet, so macOS blocks the first launch:
+
+1. Open Musike once; macOS says it can't verify it. Click **Done**.
+2. Open **System Settings > Privacy & Security**, scroll down and click **Open Anyway** next to Musike, then confirm.
+
+If macOS says the app "is damaged and can't be opened", remove the download flag in Terminal and open it again:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Musike.app
 ```
 
-O instalador:
+Like on Windows, the first launch downloads yt-dlp, Deno and FFmpeg. Everything lives in `~/Library/Application Support/Musike` (same folders as the table above), and updating (dragging the new version over the old one) keeps your library.
 
-- instala só para o usuário atual (não pede administrador) e deixa escolher a pasta;
-- cria o atalho **Musike** na área de trabalho e no Menu Iniciar e abre o app ao terminar;
-- desinstala pelo Windows em Configurações > Aplicativos.
+To build it yourself on a Mac: `pnpm install && pnpm --filter musike-desktop dist:mac` (creates the `.dmg` files in `release`).
 
-Na primeira abertura, uma tela mostra o download das ferramentas oficiais: **yt-dlp** e **Deno** (cerca de 60 MB) e, em segundo plano, **FFmpeg** (cerca de 80 MB, para vídeo HD). Tudo fica em `%APPDATA%\Musike`:
+### Option 3: Linux app
 
-| Pasta | Conteúdo |
-|---|---|
-| `bin` | yt-dlp, Deno e FFmpeg do próprio Musike (atualizáveis em Ajustes) |
-| `data` | `library.json` com playlists, favoritas e histórico |
-| `cache` | vídeos HD já baixados |
-| `backups` | cópias da biblioteca feitas a cada atualização |
+From the [latest release](https://github.com/Ernani1234/musike/releases/latest), pick the package for your system: `x64` for most PCs, `arm64` for ARM computers such as a Raspberry Pi 4 or 5 running a 64-bit desktop.
 
-**Atualizar é só instalar a versão nova por cima.** A pasta `%APPDATA%\Musike` fica fora da pasta do programa e nem a atualização nem a desinstalação a apagam. Por segurança, antes de trocar a versão o instalador ainda copia a biblioteca para `backups\library-before-install-<versão>.json`, e o app guarda outra cópia datada na primeira abertura de cada versão (mantém as 5 mais recentes). Para restaurar uma delas, feche o Musike e copie o arquivo por cima de `data\library.json`.
+- **Debian, Ubuntu, Linux Mint, Pop!_OS:** `Musike-Setup-<version>-Linux-x64.deb`. Open it with the software installer, or run `sudo apt install ./Musike-Setup-<version>-Linux-x64.deb`. Musike appears in the applications menu.
+- **Any other distribution:** `Musike-Setup-<version>-Linux-x64.AppImage`. Make it executable and run it: `chmod +x Musike-*.AppImage && ./Musike-*.AppImage`.
 
-> O instalador não é assinado digitalmente. Na primeira execução o Windows mostra "O Windows protegeu o computador": clique em **Mais informações** e depois **Executar assim mesmo**.
+> Ubuntu 24.04 and newer block the sandbox an AppImage needs, so there the AppImage closes right away: use the `.deb` (it sets up what's needed), or start the AppImage with `--no-sandbox`.
 
-### Opção 2: servidor + navegador (computador e celular)
+Like on Windows and macOS, the first launch downloads yt-dlp, Deno and FFmpeg. Everything lives in `~/.config/Musike` (same folders as the table above). To update, install the new `.deb` over the old one or replace the AppImage: your library stays.
 
-Requisitos:
+To build it yourself on Linux: `pnpm install && pnpm --filter musike-desktop dist:linux` (creates the `.deb` and `.AppImage` files in `release`).
 
-| Ferramenta | Versão | Windows |
+### Option 4: Android app
+
+On the phone, download `Musike-Setup-<version>-Android.apk` from the [latest release](https://github.com/Ernani1234/musike/releases/latest) and open it. Android asks to allow installing apps from your browser (or Files): allow it, then tap **Install**. If Play Protect warns about an unknown app, tap **More details > Install anyway**. Requires Android 7.0 or newer.
+
+- It works on its own: no computer and no Musike server needed, only an internet connection.
+- Your playlists and favorites live on the phone. To move them to or from a computer, use [backup to a file](#moving-your-library-backup) (on Android, Export opens the share sheet: save to Files or Drive, or send it to yourself).
+- **To update,** install the new APK over the old one. Your library stays.
+- Audio only for now: the video mode is available on the desktop app and in the browser.
+
+To build the APK yourself you need JDK 21 and the Android SDK (Android Studio installs both): `pnpm install && pnpm --filter @musike/mobile apk` (creates `release/Musike-Setup-<version>-Android.apk`; unsigned unless `mobile/android/keystore.properties` points to your signing key).
+
+### Option 5: Docker
+
+For a home server, NAS or Raspberry Pi. The image (amd64 and arm64) includes yt-dlp, Deno and FFmpeg.
+
+```yaml
+# docker-compose.yml
+services:
+  musike:
+    image: ghcr.io/ernani1234/musike:latest
+    ports:
+      - "4180:4180"
+    volumes:
+      - musike-data:/data   # library: playlists, favorites, history
+      - musike-cache:/cache # HD videos already downloaded
+    restart: unless-stopped
+volumes:
+  musike-data:
+  musike-cache:
+```
+
+```bash
+docker compose up -d   # then open http://<that machine>:4180
+```
+
+Or with plain Docker: `docker run -d -p 4180:4180 -v musike-data:/data -v musike-cache:/cache ghcr.io/ernani1234/musike`. To build the image from source instead: `docker build -t musike .`
+
+- A new image is published for every release; `docker compose pull && docker compose up -d` updates it. The library stays in the `/data` volume.
+- yt-dlp can also be updated from **Settings** without a new image (until the container is recreated).
+- All the [environment variables](#configuration) work, e.g. `YTDLP_EXTRA_ARGS="--cookies /data/cookies.txt"` for YouTube's bot checks.
+
+> **Run it at home, not on a VPS:** YouTube blocks datacenter IPs ("Sign in to confirm you're not a bot"). A home server uses your residential IP.
+
+### Option 6: Node server + browser
+
+Requirements:
+
+| Tool | Version | Windows |
 |---|---|---|
 | Node.js | 22.19+ | `winget install OpenJS.NodeJS.LTS` |
-| pnpm | 10+ | `npm install -g pnpm` |
-| yt-dlp | recente | `winget install yt-dlp.yt-dlp` (instala Deno e FFmpeg junto) |
+| pnpm | 10+ | `corepack enable` |
+| yt-dlp | recent | `winget install yt-dlp.yt-dlp` (installs Deno and FFmpeg too) |
 
-```powershell
+```bash
 pnpm install
-pnpm build   # compila a interface
+pnpm build   # builds the web app
 pnpm start   # http://localhost:4180
 ```
 
-O servidor mostra os endereços de rede ao iniciar. Abra o endereço `Rede:` no celular conectado ao mesmo Wi-Fi (permita o Node no firewall em redes privadas). O servidor encontra o yt-dlp mesmo em terminais abertos antes da instalação, lendo o PATH do registro do Windows.
+The server prints its network addresses on start. Open the `Network:` address on a phone on the same Wi-Fi (allow Node through the firewall on private networks). On Windows the server finds yt-dlp even in terminals opened before it was installed, by reading the PATH from the registry.
 
-**Fora de casa:** instale o [Tailscale](https://tailscale.com) no computador e no celular. Para instalar como app (PWA) no celular, o navegador exige HTTPS: rode `tailscale serve --bg 4180` e use o endereço `https://...ts.net`.
+**Away from home:** install [Tailscale](https://tailscale.com) on the computer and the phone. To install Musike as an app (PWA) on the phone the browser requires HTTPS: run `tailscale serve --bg 4180` and use the `https://...ts.net` address.
 
-> Não hospede em VPS ou nuvem: o YouTube bloqueia IPs de datacenter ("Sign in to confirm you're not a bot"). Rodar no seu computador usa seu IP residencial.
+### Development
 
-### Desenvolvimento
-
-```powershell
-pnpm dev        # servidor (4180) + Vite com recarga automática (5173)
-pnpm desktop    # abre o app Electron em modo de desenvolvimento
-pnpm typecheck  # checa os três pacotes
+```bash
+pnpm dev        # server (4180) + Vite with hot reload (5173)
+pnpm desktop    # opens the Electron app in development mode
+pnpm typecheck  # checks every package
 ```
 
-## Levar sua biblioteca para outra instância (backup)
+## Moving your library (backup)
 
-Enquanto a sincronização em nuvem não existe, o Musike exporta tudo num arquivo que **qualquer instância** lê: web, desktop, outro computador.
+Until cloud sync exists, Musike exports everything to a file that **any instance** can read: web, desktop, Android, Docker, another computer.
 
-1. Na instância de origem, abra **Ajustes > Seus dados > Exportar** (ou o ícone de banco de dados na Biblioteca). Um arquivo `musike-backup-AAAA-MM-DD.musike.json` é salvo.
-2. Na instância de destino, **Ajustes > Seus dados > Importar** e escolha o arquivo.
-3. Confira a prévia (quantas playlists, faixas, favoritas) e escolha:
-   - **Juntar com a minha biblioteca** (padrão): adiciona o que falta e nunca apaga. Playlists com o mesmo nome ganham as faixas novas; importar duas vezes não duplica nada.
-   - **Substituir tudo:** deixa a biblioteca exatamente como no backup (pede confirmação).
-4. Opcionalmente, aplica também o tema e as preferências do player.
+1. On the source, open **Settings > Your data > Export** (or the database icon in the Library). A `musike-backup-YYYY-MM-DD.musike.json` file is saved (on Android, the share sheet opens so you can save or send it).
+2. On the destination, **Settings > Your data > Import** and pick the file.
+3. Check the preview (how many playlists, tracks, favorites) and choose:
+   - **Merge with my library** (default): adds what's missing and never deletes. Playlists with the same name get the new tracks; importing twice duplicates nothing.
+   - **Replace everything:** makes the library exactly like the backup (asks for confirmation).
+4. Optionally, also apply the appearance, language and player preferences.
 
-O arquivo é JSON legível e versionado:
+The file is readable, versioned JSON:
 
 ```json
 {
   "format": "musike-backup",
   "version": 1,
-  "exportedAt": "2026-10-12T22:33:00.000Z",
-  "app": "Musike 0.1.0",
+  "exportedAt": "2026-10-16T22:33:00.000Z",
+  "app": "Musike 1.4.0",
   "library": {
-    "favorites": [{ "id": "UpvruBhcH38", "title": "Oceano", "artist": "Djavan", "duration": 297, "thumb": "https://...", "art": "https://...", "kind": "song" }],
-    "playlists": [{ "id": "…", "name": "Foco", "createdAt": 1791842422955, "updatedAt": 1791842422955, "tracks": [] }],
+    "favorites": [{ "id": "hTWKbfoikeg", "title": "Smells Like Teen Spirit", "artist": "Nirvana", "duration": 302, "thumb": "https://...", "art": "https://...", "kind": "song" }],
+    "playlists": [{ "id": "…", "name": "Focus", "createdAt": 1791842422955, "updatedAt": 1791842422955, "tracks": [] }],
     "history": []
   },
-  "settings": { "theme": "dark", "preferVideo": false, "quality": "sd", "autoRadio": true, "volume": 0.9 }
+  "settings": { "theme": "dark", "lang": "en", "preferVideo": false, "quality": "sd", "autoRadio": true, "volume": 0.9 }
 }
 ```
 
-Na importação o servidor valida cada faixa (ID do YouTube, tamanhos, só imagens `https://`), descarta entradas inválidas em vez de recusar o arquivo inteiro e recusa backups de versões mais novas com uma mensagem clara.
+On import the server validates every track (YouTube ID, sizes, `https://` images only), skips invalid entries instead of rejecting the whole file, and refuses backups from newer versions with a clear message.
 
-## Atalhos de teclado
+## Keyboard shortcuts
 
-| Tecla | Ação |
+| Key | Action |
 |---|---|
-| `Espaço` | Tocar / pausar |
-| `←` `→` | Voltar / avançar 5 s |
-| `Shift` + `←` `→` | Faixa anterior / próxima |
+| `Space` | Play / pause |
+| `←` `→` | Back / forward 5 s |
+| `Shift` + `←` `→` | Previous / next track |
 | `↑` `↓` | Volume |
-| `M` | Mudo |
-| `L` | Favoritar a faixa atual |
-| `S` | Ordem aleatória |
-| `R` | Repetir (desligado, fila, faixa) |
-| `V` | Alternar Áudio / Vídeo |
-| `F` | Modo cinema |
-| `Q` | Fila |
-| `/` | Buscar |
-| `?` | Lista de atalhos |
+| `M` | Mute |
+| `L` | Favorite the current track |
+| `S` | Shuffle |
+| `R` | Repeat (off, queue, track) |
+| `V` | Switch Audio / Video |
+| `F` | Cinema mode |
+| `Q` | Queue |
+| `/` | Search |
+| `?` | Shortcut list |
 
-## Configuração
+## Configuration
 
-Variáveis de ambiente do servidor (todas opcionais):
+Server environment variables (all optional):
 
-| Variável | Padrão | Uso |
+| Variable | Default | Use |
 |---|---|---|
-| `PORT` | `4180` | Porta HTTP |
-| `HOST` | `0.0.0.0` | Use `127.0.0.1` para aceitar só este computador |
-| `YTDLP_PATH` | automático | Força um executável específico do yt-dlp |
-| `YTDLP_EXTRA_ARGS` | | Flags extras, ex.: `--cookies-from-browser firefox` |
-| `MUSIKE_DATA_DIR` | `server/data` | Onde fica `library.json` |
-| `MUSIKE_CACHE_DIR` | `server/cache` | Vídeos HD baixados |
-| `MUSIKE_CACHE_MAX_MB` | `2048` | Limite do cache de vídeo (apaga os menos tocados) |
-| `MUSIKE_BIN_DIR` | | Pasta privada de ferramentas (o app desktop usa `%APPDATA%\Musike\bin`) |
-| `MUSIKE_LANG` / `MUSIKE_LOCATION` | `en` / `BR` | Idioma do YouTube Music quando a requisição não informa um (o app sempre informa o idioma escolhido) e região da busca |
+| `PORT` | `4180` | HTTP port |
+| `HOST` | `0.0.0.0` | Use `127.0.0.1` to accept only this computer |
+| `YTDLP_PATH` | automatic | Forces a specific yt-dlp executable |
+| `YTDLP_EXTRA_ARGS` | | Extra flags, e.g. `--cookies-from-browser firefox` |
+| `MUSIKE_DATA_DIR` | `server/data` (`/data` in Docker) | Where `library.json` lives |
+| `MUSIKE_CACHE_DIR` | `server/cache` (`/cache` in Docker) | Downloaded HD videos |
+| `MUSIKE_CACHE_MAX_MB` | `2048` | Video cache limit (least recently played go first) |
+| `MUSIKE_BIN_DIR` | | Private tools folder (the desktop app uses `%APPDATA%\Musike\bin`) |
+| `MUSIKE_LANG` | `en` | YouTube Music language when a request doesn't say (the app always sends the chosen language) |
+| `MUSIKE_LOCATION` | `BR` | Region for YouTube Music results |
 
 ## API
 
-Todas as rotas respondem JSON. Erros vêm como `{ "error": "mensagem", "code"?: "tool_missing" | "maybe_outdated" | "bot_check" }`.
+Every route answers JSON. Errors look like `{ "error": "message", "code"?: "tool_missing" | "maybe_outdated" | "bot_check" }`, with the message in the language of the `x-musike-lang` request header (`en` or `pt-BR`).
 
-| Método | Rota | Descrição |
+| Method | Route | Description |
 |---|---|---|
-| `GET` | `/api/search?q=&type=song\|video` | Busca no YouTube Music |
-| `GET` | `/api/suggest?q=` | Sugestões de busca |
-| `GET` | `/api/radio/:id` | Faixas relacionadas (rádio) |
-| `GET` | `/api/genres` | Gêneros do YouTube Music |
-| `GET` | `/api/genres/:gid` | Artistas e músicas de um gênero |
-| `GET` | `/api/genres/:gid/artists?offset=` | Mais artistas do gênero ("Carregar mais") |
-| `GET` | `/api/artists/:aid` | Maiores sucessos de um artista |
-| `GET` | `/api/video-for/:id?title=&artist=&duration=` | Clipe oficial de uma música |
-| `POST` | `/api/prepare/:id` | Resolve o stream antes de tocar |
-| `GET` | `/api/stream/:id/audio` | Áudio com HTTP Range |
-| `GET` | `/api/stream/:id/video?q=sd\|hd` | Vídeo com HTTP Range |
-| `GET` | `/api/library` | Biblioteca completa |
-| `PUT` / `DELETE` | `/api/favorites/:id` | Favoritar / desfavoritar |
-| `POST` | `/api/favorites` | Favorita várias de uma vez (`{ tracks }`) |
-| `POST` | `/api/history` | Registra uma faixa tocada |
-| `POST` | `/api/playlists` | Cria playlist |
-| `PATCH` / `DELETE` | `/api/playlists/:pid` | Renomeia / exclui |
-| `POST` / `DELETE` | `/api/playlists/:pid/tracks[/:id]` | Adiciona (uma faixa ou `{ tracks }`) / remove faixa |
-| `POST` | `/api/library/import` | Importa backup (`{ backup, mode: "merge" \| "replace" }`) |
-| `GET` | `/api/system` | Versões do yt-dlp, Deno, FFmpeg e downloads |
-| `POST` | `/api/system/ytdlp` | Atualiza ou instala o yt-dlp (`{ channel: "stable" \| "nightly" }`) |
+| `GET` | `/api/search?q=&type=song\|video` | Search YouTube Music |
+| `GET` | `/api/search/albums?q=` | Search albums |
+| `GET` | `/api/suggest?q=` | Search suggestions |
+| `GET` | `/api/radio/:id` | Related tracks (radio) |
+| `GET` | `/api/genres` | YouTube Music genres |
+| `GET` | `/api/genres/:gid` | A genre's artists and songs |
+| `GET` | `/api/genres/:gid/artists?offset=` | More of a genre's artists ("Load more") |
+| `GET` | `/api/artists/:aid` | An artist's greatest hits, albums and singles |
+| `GET` | `/api/albums/:alid` | An album's tracks in order |
+| `GET` | `/api/video-for/:id?title=&artist=&duration=` | A song's official music video |
+| `POST` | `/api/prepare/:id` | Resolves a stream before playing |
+| `GET` | `/api/stream/:id/audio` | Audio with HTTP Range |
+| `GET` | `/api/stream/:id/video?q=sd\|hd` | Video with HTTP Range |
+| `GET` | `/api/library` | The whole library |
+| `PUT` / `DELETE` | `/api/favorites/:id` | Favorite / unfavorite |
+| `POST` | `/api/favorites` | Favorite many at once (`{ tracks }`) |
+| `POST` | `/api/history` | Records a played track |
+| `POST` | `/api/playlists` | Creates a playlist |
+| `PATCH` / `DELETE` | `/api/playlists/:pid` | Renames / deletes |
+| `POST` / `DELETE` | `/api/playlists/:pid/tracks[/:id]` | Adds (one track or `{ tracks }`) / removes a track |
+| `POST` | `/api/library/import` | Imports a backup (`{ backup, mode: "merge" \| "replace" }`) |
+| `GET` | `/api/system` | yt-dlp, Deno and FFmpeg versions and downloads |
+| `POST` | `/api/system/ytdlp` | Updates or installs yt-dlp (`{ channel: "stable" \| "nightly" }`) |
 
-## Estrutura do projeto
+## Project structure
 
 ```
 musike/
 ├─ server/            Fastify + yt-dlp + youtubei.js
 │  └─ src/
-│     ├─ app.ts         rotas e inicialização (usado pelo CLI e pelo desktop)
-│     ├─ ytdlp.ts       resolução de streams, cache HD, tradução de erros
-│     ├─ stream.ts      proxy com HTTP Range
-│     ├─ search.ts      busca, sugestões, rádio e escolha do clipe oficial
-│     ├─ library.ts     playlists, favoritas, histórico e import de backup
-│     ├─ tools.ts       localiza yt-dlp, Deno, FFmpeg (registro do Windows, winget)
-│     ├─ bootstrap.ts   baixa as ferramentas para o app desktop
-│     └─ system.ts      versão e atualização do yt-dlp
+│     ├─ app.ts         routes and startup (used by the CLI, the desktop app and Docker)
+│     ├─ browse.ts      genres, artists, albums
+│     ├─ search.ts      search, suggestions, radio and official music videos
+│     ├─ ytdlp.ts       stream resolution, HD cache, error messages
+│     ├─ stream.ts      proxy with HTTP Range
+│     ├─ library.ts     playlists, favorites, history and backup import
+│     ├─ i18n.ts        server messages in each language
+│     ├─ tools.ts       finds yt-dlp, Deno, FFmpeg (Windows registry, winget, PATH)
+│     ├─ bootstrap.ts   downloads the tools for the desktop app
+│     └─ system.ts      yt-dlp version and updates
 ├─ web/               React 19 + Vite + Tailwind v4 + Motion + Phosphor (PWA)
 │  └─ src/
-│     ├─ player/        motor de reprodução (áudio, vídeo, fila, Media Session)
-│     ├─ components/    player, painéis, modo cinema, Ajustes, backup
-│     ├─ views/         Início, Buscar, Biblioteca, playlists
-│     └─ stores/        estado (zustand)
-├─ desktop/           Electron: janela, servidor embutido, instalador NSIS
-└─ docs/              benchmark de UX, design system e capturas de tela
+│     ├─ player/        playback engine (audio, video, queue, Media Session)
+│     ├─ components/    player, panels, cinema mode, Settings, backup
+│     ├─ views/         Home, Search, Library, playlists, genres, artists, albums
+│     ├─ i18n/          English (the source) and Portuguese
+│     ├─ native/        Android: server code running in the app, streams, media controls
+│     └─ stores/        state (zustand), appearance preferences
+├─ desktop/           Electron: window, built-in server, Windows installer, macOS and Linux packages
+├─ mobile/            Android app (Capacitor): playback service, signing, streaming.json
+├─ Dockerfile         server + web app image (amd64, arm64)
+└─ docs/              UX benchmark, design system and screenshots
 ```
 
-**Stack:** TypeScript em tudo · Fastify 5 · youtubei.js · yt-dlp · React 19 · Vite 8 · Tailwind CSS 4 · Motion · Zustand · React Router · Phosphor Icons · Geist · Electron 44 · electron-builder.
+**Stack:** TypeScript everywhere · Fastify 5 · youtubei.js · yt-dlp · React 19 · Vite 8 · Tailwind CSS 4 · Motion · Zustand · React Router · Phosphor Icons · Geist · Electron 44 · electron-builder · Capacitor 8.
 
-**Design:** a identidade (marca de equalizador em M, cor Volt, Geist) e as regras de layout estão em [docs/design-system.md](docs/design-system.md). O estudo de UX que guiou o layout está em [docs/ux-benchmark.md](docs/ux-benchmark.md): observação do web player do Spotify, sem descompilar código.
+**Design:** the identity (the equalizer M mark, the Volt color, Geist) and the layout rules are in [docs/design-system.md](docs/design-system.md). The UX study behind the layout is in [docs/ux-benchmark.md](docs/ux-benchmark.md).
 
-## Solução de problemas
+**Adding a language:** copy `web/src/i18n/pt.ts`, translate it (TypeScript fails the build if a key is missing), list it in `web/src/i18n/index.ts`, and add the server messages in `server/src/i18n.ts`.
 
-**Parou de tocar ou "O YouTube recusou o stream"**
-O YouTube muda com frequência e o yt-dlp acompanha. Abra **Ajustes** e toque em **Atualizar**. Se a correção ainda não chegou ao canal Estável, escolha **Nightly**.
+## Troubleshooting
 
-**"O YouTube pediu verificação anti-bot"**
-Passe cookies de um navegador logado (o Firefox funciona melhor no Windows):
+**Songs stopped playing, or "YouTube refused the stream"**
+YouTube changes often and yt-dlp keeps up. Open **Settings** and click **Update**. If the fix hasn't reached the Stable channel yet, pick **Nightly**.
 
-```powershell
-$env:YTDLP_EXTRA_ARGS = "--cookies-from-browser firefox"; pnpm start
+**"YouTube asked for an anti-bot check"**
+Pass cookies from a signed-in browser (Firefox works best on Windows):
+
+```bash
+YTDLP_EXTRA_ARGS="--cookies-from-browser firefox" pnpm start
 ```
 
-**"yt-dlp não encontrado"**
-No app desktop, use **Instalar** em Ajustes. No servidor, instale com `winget install yt-dlp.yt-dlp` ou defina `YTDLP_PATH`.
+In Docker, export a `cookies.txt` into the data volume and set `YTDLP_EXTRA_ARGS="--cookies /data/cookies.txt"`.
 
-**O vídeo demora para começar**
-Muitos vídeos não têm versão SD combinada; o servidor baixa e junta vídeo e áudio antes de tocar (alguns segundos na primeira vez, instantâneo depois, pelo cache).
+**"yt-dlp wasn't found"**
+In the desktop app, use **Install** in Settings. For the Node server, install it with `winget install yt-dlp.yt-dlp` or set `YTDLP_PATH`.
 
-**"Esta música não tem clipe no YouTube"**
-O Musike só aceita clipes publicados pelo canal do próprio artista, para não tocar covers ou versões erradas. A música continua tocando em áudio.
+**Video takes a while to start**
+Many videos have no combined SD version; the server downloads and merges video and audio before playing (a few seconds the first time, instant after that thanks to the cache).
+
+**"This song has no music video on YouTube"**
+Musike only accepts music videos from the artist's own channel, so it never plays covers or wrong versions. The song keeps playing as audio.
 
 **iPhone**
-O iOS limita a reprodução em segundo plano de PWAs; o modo Áudio funciona melhor que o Vídeo.
+iOS limits background playback for PWAs; Audio mode works better than Video.
 
 ## Roadmap
 
-- [ ] Sincronização da biblioteca em nuvem (hoje: [backup em arquivo](#levar-sua-biblioteca-para-outra-instância-backup))
-- [ ] Baixar faixas em MP3 / MP4
-- [ ] Importar playlists do YouTube por link
-- [ ] Instaladores para macOS e Linux
-- [ ] Atualização automática do app desktop
+- [x] Albums and artist discographies
+- [x] Docker image
+- [x] Languages and appearance settings
+- [x] macOS app
+- [x] Linux app
+- [x] Android app (audio)
+- [ ] Cloud sync for the library (today: [backup to a file](#moving-your-library-backup))
+- [ ] Import YouTube playlists from a link
+- [ ] Video mode on Android
+- [ ] Automatic updates for the desktop app
 
-## Aviso legal
+Ideas and bug reports are welcome in [Issues](https://github.com/Ernani1234/musike/issues).
 
-O Musike é um projeto para **uso pessoal e educacional**. Reproduzir conteúdo do YouTube sem anúncios por extração de stream viola os [Termos de Serviço do YouTube](https://www.youtube.com/t/terms); serviços públicos que fizeram isso, como os bots Groovy e Rythm, foram encerrados após notificação do Google. Não publique o Musike como serviço, não o monetize e respeite os direitos dos artistas. O projeto não hospeda, distribui nem armazena conteúdo do YouTube além do cache local temporário de quem o executa.
+## Legal notice
 
-## Licença
+Musike is a project for **personal and educational use**. Playing YouTube content without ads by extracting its streams goes against [YouTube's Terms of Service](https://www.youtube.com/t/terms); public services that did this, such as the Groovy and Rythm bots, were shut down after notices from Google. Don't offer Musike as a public service, don't monetize it, and respect the artists' rights. The project doesn't host, distribute or store YouTube content beyond the temporary local cache of whoever runs it.
+
+## License
 
 [MIT](LICENSE) © 2026 Ernani Neto

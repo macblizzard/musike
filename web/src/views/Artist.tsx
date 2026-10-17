@@ -1,6 +1,7 @@
 import { MusicNotesIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useLocation, useParams } from "react-router";
+import { AlbumRow } from "../components/AlbumTiles";
 import { Artwork } from "../components/Artwork";
 import { BackButton, EmptyState, PageHeader } from "../components/Page";
 import { SelectableTrackList } from "../components/Selection";
@@ -51,6 +52,9 @@ export default function Artist() {
           {page.data.description}
         </button>
       )}
+
+      {page.status === "ok" && page.data.albums.length > 0 && <AlbumRow title={t.artist.albums} albums={page.data.albums} />}
+      {page.status === "ok" && page.data.singles.length > 0 && <AlbumRow title={t.artist.singles} albums={page.data.singles} />}
 
       <h2 className="px-4 pt-6 pb-1 text-xl font-semibold tracking-tight md:px-6">{t.artist.hits}</h2>
 
