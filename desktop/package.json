@@ -12,8 +12,8 @@
     "bundle": "node scripts/bundle.mjs",
     "start": "pnpm --filter @musike/web build && node scripts/bundle.mjs && electron .",
     "dist": "pnpm --filter @musike/web build && node scripts/bundle.mjs && electron-builder --win nsis --publish never",
-    "dist:mac": "pnpm --filter @musike/web build && node scripts/bundle.mjs && electron-builder --mac dmg --publish never",
-    "dist:linux": "pnpm --filter @musike/web build && node scripts/bundle.mjs && electron-builder --linux AppImage deb --publish never",
+    "dist:mac": "pnpm --filter @musike/web build && node scripts/bundle.mjs && electron-builder --mac --publish never",
+    "dist:linux": "pnpm --filter @musike/web build && node scripts/bundle.mjs && electron-builder --linux --publish never",
     "typecheck": "tsc --noEmit"
   },
   "build": {

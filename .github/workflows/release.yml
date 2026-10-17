@@ -20,15 +20,21 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter musike-desktop dist
-      - uses: actions/upload-artifact@v4
+      - name: Check downloads
+        shell: bash
+        run: |
+          { echo "### Windows"; ls release | sed 's/^/- /'; } >> "$GITHUB_STEP_SUMMARY"
+          found=$(ls release/*-Windows.exe 2>/dev/null | wc -l)
+          [ "$found" -eq 1 ] || { echo "::error::Expected 1 file(s) matching *-Windows.exe, found $found"; ls -l release; exit 1; }
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: release/*
@@ -37,9 +43,9 @@ jobs:
   mac:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -48,7 +54,13 @@ jobs:
       - run: pnpm --filter musike-desktop dist:mac
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-      - uses: actions/upload-artifact@v4
+      - name: Check downloads
+        shell: bash
+        run: |
+          { echo "### macOS"; ls release | sed 's/^/- /'; } >> "$GITHUB_STEP_SUMMARY"
+          found=$(ls release/*-macOS-*.dmg 2>/dev/null | wc -l)
+          [ "$found" -eq 2 ] || { echo "::error::Expected 2 file(s) matching *-macOS-*.dmg, found $found"; ls -l release; exit 1; }
+      - uses: actions/upload-artifact@v7
         with:
           name: mac
           path: release/*
@@ -57,16 +69,22 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # AppImage and .deb, for x64 and arm64 (the arm64 ones are packaged here too: nothing is compiled).
       - run: pnpm --filter musike-desktop dist:linux
-      - uses: actions/upload-artifact@v4
+      - name: Check downloads
+        shell: bash
+        run: |
+          { echo "### Linux"; ls release | sed 's/^/- /'; } >> "$GITHUB_STEP_SUMMARY"
+          found=$(ls release/*-Linux-* 2>/dev/null | wc -l)
+          [ "$found" -eq 4 ] || { echo "::error::Expected 4 file(s) matching *-Linux-*, found $found"; ls -l release; exit 1; }
+      - uses: actions/upload-artifact@v7
         with:
           name: linux
           path: release/*
@@ -75,13 +93,13 @@ jobs:
   android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
@@ -101,7 +119,13 @@ jobs:
           MUSIKE_KEYSTORE_PASSWORD: ${{ secrets.MUSIKE_KEYSTORE_PASSWORD }}
           MUSIKE_KEY_ALIAS: ${{ secrets.MUSIKE_KEY_ALIAS }}
           MUSIKE_KEY_PASSWORD: ${{ secrets.MUSIKE_KEY_PASSWORD }}
-      - uses: actions/upload-artifact@v4
+      - name: Check downloads
+        shell: bash
+        run: |
+          { echo "### Android"; ls release | sed 's/^/- /'; } >> "$GITHUB_STEP_SUMMARY"
+          found=$(ls release/*-Android.apk 2>/dev/null | wc -l)
+          [ "$found" -eq 1 ] || { echo "::error::Expected 1 file(s) matching *-Android.apk, found $found"; ls -l release; exit 1; }
+      - uses: actions/upload-artifact@v7
         with:
           name: android
           path: release/*
@@ -114,11 +138,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: downloads
           merge-multiple: true
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           draft: true
           generate_release_notes: true
