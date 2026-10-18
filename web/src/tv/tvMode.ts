@@ -1,8 +1,12 @@
 /**
  * Android TV mode: 10-foot UI plus D-pad spatial navigation.
  *
- * Enabled by VITE_TV=1 at build time (see tools/build-apk-tv.sh) or by opening the app with ?tv=1,
+ * Enabled by VITE_TV=1 at build time (tools/build-apk-tv.sh) or by opening the app with ?tv=1,
  * so the normal desktop/mobile builds are untouched.
+ *
+ * Rules: geometry in document space (rails stay navigable when an item is scrolled out), candidates
+ * overlapping the current element on the other axis win, the nearest scrollable ancestor is scrolled
+ * just enough to reveal the target, and key auto-repeat is throttled so a held arrow moves one step.
  */
 
 const FOCUSABLE = [
@@ -17,6 +21,9 @@ const FOCUSABLE = [
   "[data-tv-focusable]",
 ].join(",");
 
+const REPEAT_MS = 90;
+let lastMove = 0;
+
 export function isTvMode(): boolean {
   if (typeof window === "undefined") return false;
   if (new URLSearchParams(window.location.search).has("tv")) return true;
@@ -24,58 +31,108 @@ export function isTvMode(): boolean {
   return document.documentElement.dataset.tv === "1";
 }
 
-const rectOf = (el: HTMLElement) => el.getBoundingClientRect();
-
-function visible(el: HTMLElement): boolean {
-  if (el === document.body) return false;
-  const r = rectOf(el);
-  if (r.width < 4 || r.height < 4) return false;
-  if (r.bottom < -40 || r.top > window.innerHeight + 40) return false;
-  const style = window.getComputedStyle(el);
-  if (style.visibility === "hidden" || style.opacity === "0") return false;
-  return true;
+function shown(el: HTMLElement): boolean {
+  const style = getComputedStyle(el);
+  if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return false;
+  const r = el.getBoundingClientRect();
+  return r.width >= 4 && r.height >= 4;
 }
 
-function candidates(): HTMLElement[] {
-  return Array.from(document.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(visible);
+function focusables(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(shown);
 }
 
-function center(el: HTMLElement) {
-  const r = rectOf(el);
-  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+function box(el: HTMLElement) {
+  const r = el.getBoundingClientRect();
+  return {
+    left: r.left + window.scrollX,
+    top: r.top + window.scrollY,
+    width: r.width,
+    height: r.height,
+    cx: r.left + window.scrollX + r.width / 2,
+    cy: r.top + window.scrollY + r.height / 2,
+  };
+}
+
+function scrollableAncestor(el: HTMLElement): HTMLElement | null {
+  let node = el.parentElement;
+  while (node && node !== document.body) {
+    const s = getComputedStyle(node);
+    const canY = /(auto|scroll|overlay)/.test(s.overflowY) && node.scrollHeight > node.clientHeight + 4;
+    const canX = /(auto|scroll|overlay)/.test(s.overflowX) && node.scrollWidth > node.clientWidth + 4;
+    if (canX || canY) return node;
+    node = node.parentElement;
+  }
+  return null;
+}
+
+function reveal(el: HTMLElement) {
+  const scroller = scrollableAncestor(el);
+  if (!scroller) {
+    el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    return;
+  }
+  const s = scroller.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const margin = 24;
+  let dx = 0;
+  let dy = 0;
+  if (r.left < s.left + margin) dx = r.left - s.left - margin;
+  else if (r.right > s.right - margin) dx = r.right - s.right + margin;
+  if (r.top < s.top + margin) dy = r.top - s.top - margin;
+  else if (r.bottom > s.bottom - margin) dy = r.bottom - s.bottom + margin;
+  if (dx || dy) scroller.scrollBy({ left: dx, top: dy, behavior: "smooth" });
 }
 
 function move(direction: "left" | "right" | "up" | "down"): boolean {
   const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  const from = current && visible(current) ? center(current) : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  const from = current && shown(current) ? box(current) : null;
+  const horizontal = direction === "left" || direction === "right";
   let best: HTMLElement | null = null;
   let bestScore = Number.POSITIVE_INFINITY;
 
-  for (const el of candidates()) {
+  for (const el of focusables()) {
     if (el === current) continue;
-    const to = center(el);
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const primary =
-      direction === "left" ? -dx : direction === "right" ? dx : direction === "up" ? -dy : dy;
-    if (primary < 6) continue;                              // not in that direction
-    const secondary = direction === "left" || direction === "right" ? Math.abs(dy) : Math.abs(dx);
-    const score = primary + secondary * 2.2;                 // stay in the same row/column when possible
+    const to = box(el);
+    const primary = !from
+      ? (horizontal ? to.cx : to.cy)
+      : horizontal
+        ? direction === "right"
+          ? to.left - (from.left + from.width)
+          : from.left - (to.left + to.width)
+        : direction === "down"
+          ? to.top - (from.top + from.height)
+          : from.top - (to.top + to.height);
+    if (primary < -2) continue;
+
+    let perp = 0;
+    let overlap = 0;
+    if (from) {
+      const a1 = horizontal ? from.top : from.left;
+      const a2 = horizontal ? from.top + from.height : from.left + from.width;
+      const b1 = horizontal ? to.top : to.left;
+      const b2 = horizontal ? to.top + to.height : to.left + to.width;
+      overlap = Math.max(0, Math.min(a2, b2) - Math.max(a1, b1));
+      perp = Math.abs((horizontal ? to.cy : to.cx) - (horizontal ? from.cy : from.cx));
+    }
+
+    const score = Math.max(primary, 0) + (overlap > 0 ? perp * 0.35 : perp * 2.6 + 400);
     if (score < bestScore) {
       bestScore = score;
       best = el;
     }
   }
+
   if (!best) return false;
   best.focus({ preventScroll: true });
-  best.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  reveal(best);
   return true;
 }
 
 function activate(): boolean {
   const el = document.activeElement;
   if (!(el instanceof HTMLElement) || el === document.body) return false;
-  if (el instanceof HTMLInputElement && /^(text|search)$/.test(el.type)) return false;
+  if (el instanceof HTMLInputElement && /^(text|search|email|password)$/.test(el.type)) return false;
   el.click();
   return true;
 }
@@ -102,27 +159,27 @@ export function installTvMode() {
 
       if (key === "ArrowLeft" || key === "ArrowRight" || key === "ArrowUp" || key === "ArrowDown") {
         if (typing) return;
+        const now = performance.now();
+        if (event.repeat && now - lastMove < REPEAT_MS) {
+          handled();
+          return;
+        }
+        lastMove = now;
         if (move(key.replace("Arrow", "").toLowerCase() as "left" | "right" | "up" | "down")) handled();
         return;
       }
+
       if ((key === "Enter" || key === " ") && !typing) {
-        // Buttons already activate themselves on Enter/Space.
         if (document.activeElement instanceof HTMLButtonElement) return;
         if (activate()) handled();
-        return;
-      }
-      if (key === "Escape" || key === "BrowserBack") {
-        // Let the app's own handlers/dialogs deal with Escape first.
       }
     },
     { capture: true },
   );
 
-  // First focus so the remote is immediately useful.
   const focusFirst = () => {
-    const first = candidates()[0];
-    if (first && document.activeElement === document.body) first.focus({ preventScroll: true });
+    const els = focusables();
+    if (document.activeElement === document.body && els.length) els[0].focus({ preventScroll: true });
   };
-  window.setTimeout(focusFirst, 400);
-  document.addEventListener("route-change", focusFirst as EventListener);
+  window.setTimeout(focusFirst, 350);
 }

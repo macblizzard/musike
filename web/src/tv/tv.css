@@ -1,47 +1,75 @@
 /* Android TV (10-foot) tweaks. Loaded only when html[data-tv="1"] is set. */
 
 html[data-tv="1"] {
-  --tv-ring: #c6f26a;
-  font-size: 125%;                      /* everything a touch bigger for a 3 m viewing distance */
+  --tv-ring: #b6f36a;
+  --tv-ring-soft: rgba(182, 243, 106, 0.35);
+  font-size: 130%;
+  scroll-behavior: smooth;
 }
 
 html[data-tv="1"] body {
-  overflow: hidden;                      /* no page scrolling: navigation moves focus */
+  overflow: hidden;
   cursor: none;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* One clear focus ring on whatever the D-pad is standing on. */
+/* One clear, animated focus ring for the whole app. */
 html[data-tv="1"] :focus {
-  outline: 4px solid var(--tv-ring) !important;
-  outline-offset: 3px !important;
-  border-radius: 12px;
-  z-index: 2;
+  outline: 3px solid var(--tv-ring) !important;
+  outline-offset: 2px !important;
+  border-radius: 14px;
+  box-shadow: 0 0 0 6px var(--tv-ring-soft), 0 18px 40px rgba(0, 0, 0, 0.45) !important;
+  transform: scale(1.035);
+  transition: transform 130ms ease-out, box-shadow 130ms ease-out, outline-color 130ms ease-out;
+  z-index: 3;
 }
 
-html[data-tv="1"] :focus:not(:focus-visible) {
-  outline: 4px solid var(--tv-ring) !important;
+html[data-tv="1"] :focus img,
+html[data-tv="1"] :focus svg {
+  transition: transform 130ms ease-out;
 }
 
-/* Kill mouse-only affordances. */
 html[data-tv="1"] *:hover {
   transform: none !important;
 }
 
 html[data-tv="1"] ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 0;
+  height: 0;
 }
 
-/* Bigger hit targets for lists and tiles. */
 html[data-tv="1"] button,
 html[data-tv="1"] [role="button"],
 html[data-tv="1"] a[href] {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 48px;
+  min-height: 48px;
 }
 
-/* Give rows more air so focus rings do not overlap. */
 html[data-tv="1"] ul,
 html[data-tv="1"] ol {
-  row-gap: 6px;
+  row-gap: 10px;
+}
+
+html[data-tv="1"] li {
+  padding-block: 2px;
+}
+
+html[data-tv="1"] h1,
+html[data-tv="1"] h2 {
+  letter-spacing: -0.01em;
+}
+
+html[data-tv="1"] small {
+  color: color-mix(in oklab, currentColor 78%, white);
+}
+
+html[data-tv="1"] aside,
+html[data-tv="1"] nav {
+  min-width: 76px;
+}
+
+html[data-tv="1"] input[type="search"],
+html[data-tv="1"] input[type="text"] {
+  font-size: 1.05em;
+  padding-block: 0.6em;
 }
