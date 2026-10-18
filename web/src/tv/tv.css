@@ -1,0 +1,47 @@
+/* Android TV (10-foot) tweaks. Loaded only when html[data-tv="1"] is set. */
+
+html[data-tv="1"] {
+  --tv-ring: #c6f26a;
+  font-size: 125%;                      /* everything a touch bigger for a 3 m viewing distance */
+}
+
+html[data-tv="1"] body {
+  overflow: hidden;                      /* no page scrolling: navigation moves focus */
+  cursor: none;
+}
+
+/* One clear focus ring on whatever the D-pad is standing on. */
+html[data-tv="1"] :focus {
+  outline: 4px solid var(--tv-ring) !important;
+  outline-offset: 3px !important;
+  border-radius: 12px;
+  z-index: 2;
+}
+
+html[data-tv="1"] :focus:not(:focus-visible) {
+  outline: 4px solid var(--tv-ring) !important;
+}
+
+/* Kill mouse-only affordances. */
+html[data-tv="1"] *:hover {
+  transform: none !important;
+}
+
+html[data-tv="1"] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* Bigger hit targets for lists and tiles. */
+html[data-tv="1"] button,
+html[data-tv="1"] [role="button"],
+html[data-tv="1"] a[href] {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Give rows more air so focus rings do not overlap. */
+html[data-tv="1"] ul,
+html[data-tv="1"] ol {
+  row-gap: 6px;
+}
