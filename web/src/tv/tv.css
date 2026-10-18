@@ -13,7 +13,7 @@ html[data-tv="1"] body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* One clear, animated focus ring for the whole app. */
+/* One clear, animated focus ring. */
 html[data-tv="1"] :focus {
   outline: 3px solid var(--tv-ring) !important;
   outline-offset: 2px !important;
@@ -22,11 +22,6 @@ html[data-tv="1"] :focus {
   transform: scale(1.035);
   transition: transform 130ms ease-out, box-shadow 130ms ease-out, outline-color 130ms ease-out;
   z-index: 3;
-}
-
-html[data-tv="1"] :focus img,
-html[data-tv="1"] :focus svg {
-  transition: transform 130ms ease-out;
 }
 
 html[data-tv="1"] *:hover {
@@ -38,9 +33,61 @@ html[data-tv="1"] ::-webkit-scrollbar {
   height: 0;
 }
 
-html[data-tv="1"] button,
-html[data-tv="1"] [role="button"],
-html[data-tv="1"] a[href] {
+/* ---- left rail (sidebar) -------------------------------------------------
+   The rail is a fixed 78px column: icons must stay square, centred and never
+   overlap, so the global min-size rules are undone here. */
+html[data-tv="1"] aside.island {
+  min-width: 84px !important;
+  width: 84px !important;
+}
+
+html[data-tv="1"] aside.island > div {
+  padding-block: 6px;
+}
+
+html[data-tv="1"] aside.island nav {
+  gap: 8px !important;
+  padding-inline: 12px !important;
+}
+
+html[data-tv="1"] aside.island button,
+html[data-tv="1"] aside.island a {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: 46px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  border-radius: 14px;
+}
+
+html[data-tv="1"] aside.island button svg,
+html[data-tv="1"] aside.island a svg {
+  width: 22px !important;
+  height: 22px !important;
+  flex: none;
+}
+
+/* The rail never scales on focus: a lifted row would touch its neighbours. */
+html[data-tv="1"] aside.island :focus {
+  transform: none;
+  box-shadow: 0 0 0 3px var(--tv-ring-soft) !important;
+  outline-offset: 0 !important;
+}
+
+/* logo mark */
+html[data-tv="1"] aside.island .size-8 {
+  width: 26px !important;
+  height: 26px !important;
+}
+
+/* ---- content ------------------------------------------------------------- */
+html[data-tv="1"] main button,
+html[data-tv="1"] main [role="button"],
+html[data-tv="1"] main a[href] {
   min-width: 48px;
   min-height: 48px;
 }
@@ -61,11 +108,6 @@ html[data-tv="1"] h2 {
 
 html[data-tv="1"] small {
   color: color-mix(in oklab, currentColor 78%, white);
-}
-
-html[data-tv="1"] aside,
-html[data-tv="1"] nav {
-  min-width: 76px;
 }
 
 html[data-tv="1"] input[type="search"],
