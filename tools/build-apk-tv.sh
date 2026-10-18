@@ -2,7 +2,7 @@
 # Android TV build: web bundle in TV mode -> Capacitor sync -> debug APK -> install.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-export JAVA_HOME="${JAVA_HOME:-/opt/homebrew/opt/openjdk@17}"
+export JAVA_HOME="${JAVA_HOME:-/opt/homebrew/opt/openjdk@21}"   # Capacitor 8 needs Java 21
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 TV_HOST="${TV_HOST:-192.0.2.157:5555}"
