@@ -115,3 +115,32 @@ html[data-tv="1"] input[type="text"] {
   font-size: 1.05em;
   padding-block: 0.6em;
 }
+
+/* ---- dialogs / sheets ----------------------------------------------------
+   On TV a sheet is a centred panel with its own scrolling; navigation is
+   trapped inside it by tvMode.ts while it is open. */
+html[data-tv="1"] [role="dialog"] {
+  max-width: min(1100px, 78vw) !important;
+  max-height: 80vh !important;
+  overflow-y: auto !important;
+  border-radius: 22px !important;
+  margin: auto !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6) !important;
+}
+
+html[data-tv="1"] [role="dialog"] h2 {
+  font-size: 1.35em;
+}
+
+html[data-tv="1"] [role="dialog"] li,
+html[data-tv="1"] [role="dialog"] button,
+html[data-tv="1"] [role="dialog"] [role="radio"] {
+  border-radius: 14px;
+}
+
+/* keep list entries apart so the focus ring has room */
+html[data-tv="1"] [role="dialog"] ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

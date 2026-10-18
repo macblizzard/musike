@@ -38,8 +38,17 @@ function shown(el: HTMLElement): boolean {
   return r.width >= 4 && r.height >= 4;
 }
 
+/** The topmost open dialog/sheet, if any. While one is open the D-pad stays inside it. */
+function activeDialog(): HTMLElement | null {
+  const nodes = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="dialog"], [aria-modal="true"], dialog[open]'),
+  ).filter(shown);
+  return nodes.length ? nodes[nodes.length - 1] : null;
+}
+
 function focusables(): HTMLElement[] {
-  return Array.from(document.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(shown);
+  const scope: ParentNode = activeDialog() ?? document;
+  return Array.from(scope.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(shown);
 }
 
 function box(el: HTMLElement) {
@@ -137,6 +146,31 @@ function activate(): boolean {
   return true;
 }
 
+let lastOutside: HTMLElement | null = null;
+
+/** Focus the first control of a freshly opened dialog, and put focus back when it closes. */
+function watchDialogs() {
+  let current: HTMLElement | null = null;
+  const sync = () => {
+    const dialog = activeDialog();
+    if (dialog === current) return;
+    if (dialog) {
+      lastOutside = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      current = dialog;
+      window.setTimeout(() => {
+        const first = focusables()[0];
+        if (first) first.focus({ preventScroll: true });
+      }, 60);
+    } else {
+      current = null;
+      if (lastOutside && document.contains(lastOutside)) lastOutside.focus({ preventScroll: true });
+      lastOutside = null;
+    }
+  };
+  new MutationObserver(sync).observe(document.body, { childList: true, subtree: true });
+  sync();
+}
+
 let installed = false;
 
 export function installTvMode() {
@@ -169,6 +203,15 @@ export function installTvMode() {
         return;
       }
 
+      if (key === "Escape" || key === "BrowserBack" || key === "GoBack") {
+        if (activeDialog()) return;                        // the app's own Escape handler closes it
+        if (window.history.length > 1) {
+          handled();
+          window.history.back();
+        }
+        return;
+      }
+
       if ((key === "Enter" || key === " ") && !typing) {
         if (document.activeElement instanceof HTMLButtonElement) return;
         if (activate()) handled();
@@ -176,6 +219,8 @@ export function installTvMode() {
     },
     { capture: true },
   );
+
+  watchDialogs();
 
   const focusFirst = () => {
     const els = focusables();
