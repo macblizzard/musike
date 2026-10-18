@@ -14,8 +14,6 @@ import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Icon;
-import android.media.AudioAttributes;
-import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.media.MediaMetadata;
 import android.media.session.MediaSession;
@@ -33,8 +31,8 @@ import java.net.URL;
 
 /**
  * Keeps Musike alive while music plays and connects it to the system: the media notification, the lock screen,
- * headphone and Bluetooth buttons, phone calls and other apps taking over the audio. The music itself plays in
- * the WebView; this service only mirrors what the app reports (see MusikePlaybackPlugin) and relays the buttons back.
+ * headphone and Bluetooth buttons, and pausing when headphones are unplugged. The music itself plays in the
+ * WebView; this service only mirrors what the app reports (see MusikePlaybackPlugin) and relays the buttons back.
  * Everything here runs on the main thread.
  */
 // A media-session notification doesn't need the notification permission (Android 13+ exempts it).
@@ -76,12 +74,8 @@ public class PlaybackService extends Service {
     private final Handler main = new Handler(Looper.getMainLooper());
     private MediaSession session;
     private NotificationManager notifications;
-    private AudioManager audio;
-    private AudioFocusRequest focusRequest;
     private PowerManager.WakeLock wakeLock;
     private boolean foreground;
-    private boolean hasFocus;
-    private boolean resumeAfterFocusLoss;
     private boolean noisyRegistered;
     private String artworkUrl = "";
     private Bitmap artwork;
@@ -112,7 +106,6 @@ public class PlaybackService extends Service {
         super.onCreate();
         instance = this;
         notifications = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        audio = (AudioManager) getSystemService(AUDIO_SERVICE);
         wakeLock = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Musike:playback");
         wakeLock.setReferenceCounted(false);
 
@@ -203,7 +196,6 @@ public class PlaybackService extends Service {
         instance = null;
         releaseWakeLock();
         setNoisyReceiver(false);
-        abandonFocus();
         session.setActive(false);
         session.release();
         stopForeground(STOP_FOREGROUND_REMOVE);
@@ -229,7 +221,6 @@ public class PlaybackService extends Service {
             // Renewed by every progress report from the app; lapses if the app stops reporting.
             wakeLock.acquire(30 * 60 * 1000L);
             setNoisyReceiver(true);
-            if (!hasFocus) requestFocus();
             goForeground(notification);
         } else {
             releaseWakeLock();
@@ -330,64 +321,8 @@ public class PlaybackService extends Service {
         if (wakeLock.isHeld()) wakeLock.release();
     }
 
-    // Audio focus: pause for calls and other players, and pick up again after a short interruption.
-
-    private final AudioManager.OnAudioFocusChangeListener onFocusChange = (change) -> {
-        switch (change) {
-            case AudioManager.AUDIOFOCUS_GAIN:
-                hasFocus = true;
-                if (resumeAfterFocusLoss) {
-                    resumeAfterFocusLoss = false;
-                    emit("play", -1);
-                }
-                break;
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-                hasFocus = false;
-                if (state.playing) {
-                    resumeAfterFocusLoss = true;
-                    emit("pause", -1);
-                }
-                break;
-            case AudioManager.AUDIOFOCUS_LOSS:
-                hasFocus = false;
-                resumeAfterFocusLoss = false;
-                if (state.playing) emit("pause", -1);
-                break;
-            default:
-                // Ducking (a navigation prompt, a notification sound): the system lowers the volume by itself.
-                break;
-        }
-    };
-
-    private void requestFocus() {
-        int result;
-        if (Build.VERSION.SDK_INT >= 26) {
-            if (focusRequest == null) {
-                AudioAttributes attributes = new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build();
-                focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                    .setAudioAttributes(attributes)
-                    .setOnAudioFocusChangeListener(onFocusChange, main)
-                    .build();
-            }
-            result = audio.requestAudioFocus(focusRequest);
-        } else {
-            result = audio.requestAudioFocus(onFocusChange, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
-        }
-        hasFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
-        resumeAfterFocusLoss = false;
-    }
-
-    private void abandonFocus() {
-        if (Build.VERSION.SDK_INT >= 26) {
-            if (focusRequest != null) audio.abandonAudioFocusRequest(focusRequest);
-        } else {
-            audio.abandonAudioFocus(onFocusChange);
-        }
-        hasFocus = false;
-    }
+    // Audio focus (calls, other players) is left to the WebView: it takes focus when the music starts and pauses
+    // or resumes it on its own. Asking for focus here too would take it away from the WebView, which then pauses.
 
     // Headphones unplugged or Bluetooth disconnected: pause instead of playing out loud.
 
