@@ -7,6 +7,7 @@
   "scripts": {
     "build": "pnpm --filter @musike/web build:native && cap sync android",
     "apk": "pnpm run build && node scripts/build-apk.mjs",
+    "ipa": "node scripts/build-ipa.mjs",
     "open": "cap open android"
   },
   "dependencies": {
@@ -14,6 +15,8 @@
     "@capacitor/app": "8.1.2",
     "@capacitor/core": "8.5.3",
     "@capacitor/filesystem": "8.1.5",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/keyboard": "^8.0.6",
     "@capacitor/share": "8.0.3"
   },
   "devDependencies": {

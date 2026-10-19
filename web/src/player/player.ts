@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { getT, useT } from "../i18n";
 import { api, capabilities, explainStreamError, streamSource, systemMedia, type ApiError, type ErrorCode } from "../lib/api";
+import { createAudio } from "../lib/audio";
 import { shuffled } from "../lib/format";
 import type { Track } from "../lib/types";
 import { useLibrary } from "../stores/library";
@@ -61,8 +62,8 @@ interface PlayerState {
 }
 
 // Media elements live outside React so playback survives any re-render or route change.
-const audio = new Audio();
-audio.preload = "auto";
+// On iOS this is the native player behind the same API (see lib/audio.ts).
+const audio = createAudio();
 
 export const videoEl = document.createElement("video");
 videoEl.playsInline = true;

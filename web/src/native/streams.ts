@@ -1,4 +1,8 @@
+import { Capacitor } from "@capacitor/core";
 import { msg, tr } from "../../../server/src/i18n";
+import { config } from "./shims/config";
+import { nativeResolverAvailable, resolveNatively } from "./ytplayer";
+
 import { text, withClient } from "../../../server/src/search";
 import { getLang } from "../i18n";
 import { ApiError } from "../lib/apiTypes";
@@ -12,12 +16,16 @@ import { ApiError } from "../lib/apiTypes";
  * remotely (mobile/streaming.json in the repository) without shipping a new app.
  */
 
-const DEFAULT_CLIENTS = ["VISIONOS"];
+// iOS asks YouTube from Safari's side of the world: its "IOS" client hands out plain URLs, while VISIONOS now hits
+// "Sign in to confirm you're not a bot" there. Android keeps the client yt-dlp itself uses.
+const DEFAULT_CLIENTS = Capacitor.getPlatform() === "ios" ? ["IOS", "VISIONOS"] : ["VISIONOS"];
 const REMOTE_CONFIG = "https://raw.githubusercontent.com/Ernani1234/musike/main/mobile/streaming.json";
 const CLIENTS_KEY = "musike:stream-clients";
 
 interface Resolved {
   url: string;
+  mime: string;
+  size: number;
   title: string;
   duration: number;
   expiresAt: number;
@@ -31,7 +39,9 @@ const validClients = (v: unknown): string[] | null =>
 
 function storedClients(): string[] {
   try {
-    return validClients(JSON.parse(localStorage.getItem(CLIENTS_KEY) ?? "null")) ?? DEFAULT_CLIENTS;
+    const stored = validClients(JSON.parse(localStorage.getItem(CLIENTS_KEY) ?? "null")) ?? [];
+    // This platform's own clients come first: a list saved by an older build (or another platform) must not hide them.
+    return [...new Set([...DEFAULT_CLIENTS, ...stored])];
   } catch {
     return DEFAULT_CLIENTS;
   }
@@ -45,8 +55,9 @@ async function refreshClients() {
     const res = await fetch(REMOTE_CONFIG, { signal: AbortSignal.timeout(6000) });
     const remote = validClients(((await res.json()) as { clients?: unknown }).clients);
     if (!remote) return;
-    clients = remote;
-    localStorage.setItem(CLIENTS_KEY, JSON.stringify(remote));
+    const merged = [...new Set([...DEFAULT_CLIENTS, ...remote])];
+    clients = merged;
+    localStorage.setItem(CLIENTS_KEY, JSON.stringify(merged));
   } catch {
     // offline or no config yet: keep what we have
   }
@@ -54,6 +65,27 @@ async function refreshClients() {
 void refreshClients();
 
 async function resolve(id: string): Promise<Resolved> {
+  if (nativeResolverAvailable()) {
+    try {
+      const r = await resolveNatively(id, getLang() === "pt-BR" ? "pt-BR" : "en", config.location);
+      if (!r.error && r.url) {
+        const expire = Number(new URL(r.url).searchParams.get("expire")) * 1000;
+        const resolved: Resolved = {
+          url: r.url,
+          mime: r.mime || "audio/mp4",
+          size: 0,
+          title: r.title,
+          duration: r.duration,
+          expiresAt: expire || Date.now() + 3 * 3600_000,
+        };
+        cache.set(id, resolved);
+        return resolved;
+      }
+    } catch (e) {
+      // fall through to the in-app clients below
+    }
+  }
+
   let reason = "";
   for (const client of clients) {
     try {
@@ -74,6 +106,8 @@ async function resolve(id: string): Promise<Resolved> {
       const expire = Number(new URL(best.url).searchParams.get("expire")) * 1000;
       const resolved: Resolved = {
         url: best.url,
+        mime: String(best.mime_type ?? "audio/mp4"),
+        size: Number(best.content_length ?? 0),
         title: info.basic_info?.title ?? "",
         duration: info.basic_info?.duration ?? 0,
         expiresAt: expire || Date.now() + 3 * 3600_000,
