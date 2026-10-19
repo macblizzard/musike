@@ -60,6 +60,8 @@ final class MusikeAudio: NSObject, WKScriptMessageHandler {
             ],
         ])
         let newItem = AVPlayerItem(asset: asset)
+        // Keep a visible amount ahead of the playhead, so the buffered part of the progress bar means something.
+        newItem.preferredForwardBufferDuration = 30
         let newPlayer = AVPlayer(playerItem: newItem)
         newPlayer.automaticallyWaitsToMinimizeStalling = true
         newPlayer.volume = player?.volume ?? 1
@@ -104,7 +106,16 @@ final class MusikeAudio: NSObject, WKScriptMessageHandler {
     }
 
     private func seek(_ to: Double) {
-        player?.seek(to: CMTime(seconds: max(0, to), preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
+        guard let player else { return }
+        player.seek(
+            to: CMTime(seconds: max(0, to), preferredTimescale: 600),
+            toleranceBefore: .zero,
+            toleranceAfter: .zero
+        ) { [weak self] finished in
+            guard finished else { return }
+            // AVPlayer reports the old position until the seek lands; the web side waits for this.
+            self?.emit("seeked", ["position": to])
+        }
     }
 
     private func bufferedEnd() -> Double {

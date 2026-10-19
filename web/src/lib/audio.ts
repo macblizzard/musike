@@ -43,6 +43,8 @@ class NativeAudio extends EventTarget {
   private _paused = true;
   private _ended = false;
   private _bufferedEnd = 0;
+  /** Set while a seek is in flight: the native player keeps reporting the old position until it lands. */
+  private _seekTarget: number | null = null;
 
   readyState = 0;
   networkState = 0;
@@ -52,8 +54,13 @@ class NativeAudio extends EventTarget {
 
   constructor(private bridge: Bridge) {
     super();
-    const host = globalThis as { __musikeAudioEvent?: (event: string, data: NativePayload) => void };
+    const host = globalThis as {
+      __musikeAudioEvent?: (event: string, data: NativePayload) => void;
+      __musikeAudioEl?: NativeAudio;
+    };
     host.__musikeAudioEvent = (event, data) => this.fromNative(event, data ?? {});
+    // Handy when something needs to poke the player from the console.
+    host.__musikeAudioEl = this;
   }
 
   get src() {
@@ -74,6 +81,7 @@ class NativeAudio extends EventTarget {
 
   set currentTime(value: number) {
     this._position = value;
+    this._seekTarget = value;
     this.bridge.postMessage({ cmd: "seek", to: value });
   }
 
@@ -150,12 +158,23 @@ class NativeAudio extends EventTarget {
         this.dispatchEvent(new Event("loadedmetadata"));
         this.dispatchEvent(new Event("durationchange"));
         break;
-      case "time":
-        this._position = data.position ?? this._position;
+      case "time": {
+        const position = data.position ?? this._position;
         if (data.duration && Number.isFinite(data.duration)) this._duration = data.duration;
         this._bufferedEnd = data.buffered ?? this._bufferedEnd;
+        // Ignore positions from before a pending seek; otherwise the player snaps back to where it was.
+        if (this._seekTarget !== null && Math.abs(position - this._seekTarget) > 1.5) break;
+        this._seekTarget = null;
+        this._position = position;
         this.dispatchEvent(new Event("timeupdate"));
         this.dispatchEvent(new Event("progress"));
+        break;
+      }
+      case "seeked":
+        this._seekTarget = null;
+        this._position = data.position ?? this._position;
+        this.dispatchEvent(new Event("seeked"));
+        this.dispatchEvent(new Event("timeupdate"));
         break;
       case "playing":
         this._paused = false;
