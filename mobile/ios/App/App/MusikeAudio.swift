@@ -10,14 +10,26 @@ import WebKit
 /// `window.__musikeAudioEvent(...)` back, so the player code doesn't have to know the difference.
 final class MusikeAudio: NSObject, WKScriptMessageHandler {
     private weak var webView: WKWebView?
+    /// Durations as YouTube reported them, by stream URL. AVPlayer often guesses twice the real length for these
+    /// audio-only streams, which would show a seven-minute song as fourteen.
+    private static var knownDurations: [String: Double] = [:]
     private var player: AVPlayer?
     private var item: AVPlayerItem?
+    private var knownDuration: Double?
+    /// Set once the real end was reported, so a padded stream doesn't end a second time.
+    private var ended = false
     private var ticker: Any?
     private var statusObservation: NSKeyValueObservation?
     private var endObserver: NSObjectProtocol?
 
     func attach(_ webView: WKWebView?) {
         self.webView = webView
+    }
+
+    static func remember(url: String, duration: Double) {
+        guard duration > 0 else { return }
+        knownDurations[url] = duration
+        if knownDurations.count > 40 { knownDurations.removeAll() }
     }
 
     // MARK: - What the web app sends
@@ -60,8 +72,10 @@ final class MusikeAudio: NSObject, WKScriptMessageHandler {
             ],
         ])
         let newItem = AVPlayerItem(asset: asset)
+        knownDuration = Self.knownDurations[link]
         // Keep a visible amount ahead of the playhead, so the buffered part of the progress bar means something.
         newItem.preferredForwardBufferDuration = 30
+        ended = false
         let newPlayer = AVPlayer(playerItem: newItem)
         newPlayer.automaticallyWaitsToMinimizeStalling = true
         newPlayer.volume = player?.volume ?? 1
@@ -73,7 +87,7 @@ final class MusikeAudio: NSObject, WKScriptMessageHandler {
             switch item.status {
             case .readyToPlay:
                 let seconds = CMTimeGetSeconds(item.duration)
-                self.emit("ready", ["duration": seconds.isFinite ? seconds : 0])
+                self.emit("ready", ["duration": self.duration(from: seconds)])
                 if startAt > 0 { self.seek(startAt) }
             case .failed:
                 self.emit("error", ["message": item.error?.localizedDescription ?? "Playback failed"])
@@ -88,13 +102,25 @@ final class MusikeAudio: NSObject, WKScriptMessageHandler {
         }
         ticker = newPlayer.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { [weak self] time in
             guard let self, let item = self.item else { return }
-            let duration = CMTimeGetSeconds(item.duration)
+            let position = CMTimeGetSeconds(time)
             self.emit("time", [
-                "position": CMTimeGetSeconds(time),
-                "duration": duration.isFinite ? duration : 0,
+                "position": position,
+                "duration": self.duration(from: CMTimeGetSeconds(item.duration)),
                 "buffered": self.bufferedEnd(),
             ])
+            // These audio streams carry silence past the song, and AVPlayer only calls it finished at the very end
+            // of the file. The track really ends where YouTube says it does.
+            if let known = self.knownDuration, !self.ended, position >= known - 0.5 {
+                self.ended = true
+                self.player?.pause()
+                self.emit("ended")
+            }
         }
+    }
+
+    private func duration(from measured: Double) -> Double {
+        if let knownDuration { return knownDuration }
+        return measured.isFinite ? measured : 0
     }
 
     private func play() {

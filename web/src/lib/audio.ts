@@ -72,6 +72,7 @@ class NativeAudio extends EventTarget {
     this._ended = false;
     this.error = null;
     this.readyState = 0;
+    this._bufferedEnd = 0;
     this.bridge.postMessage({ cmd: "load", url: value });
   }
 
@@ -161,11 +162,17 @@ class NativeAudio extends EventTarget {
       case "time": {
         const position = data.position ?? this._position;
         if (data.duration && Number.isFinite(data.duration)) this._duration = data.duration;
-        this._bufferedEnd = data.buffered ?? this._bufferedEnd;
+        // Right after a seek the player reports no loaded ranges; keep the bar at least up to the playhead.
+        const loaded = data.buffered ?? 0;
+        if (loaded > 0) this._bufferedEnd = Math.max(loaded, position);
         // Ignore positions from before a pending seek; otherwise the player snaps back to where it was.
-        if (this._seekTarget !== null && Math.abs(position - this._seekTarget) > 1.5) break;
+        if (this._seekTarget !== null && Math.abs(position - this._seekTarget) > 1.5) {
+          this.dispatchEvent(new Event("progress"));
+          break;
+        }
         this._seekTarget = null;
         this._position = position;
+        this._bufferedEnd = Math.max(this._bufferedEnd, position);
         this.dispatchEvent(new Event("timeupdate"));
         this.dispatchEvent(new Event("progress"));
         break;
@@ -173,8 +180,10 @@ class NativeAudio extends EventTarget {
       case "seeked":
         this._seekTarget = null;
         this._position = data.position ?? this._position;
+        this._bufferedEnd = Math.max(this._bufferedEnd, this._position);
         this.dispatchEvent(new Event("seeked"));
         this.dispatchEvent(new Event("timeupdate"));
+        this.dispatchEvent(new Event("progress"));
         break;
       case "playing":
         this._paused = false;

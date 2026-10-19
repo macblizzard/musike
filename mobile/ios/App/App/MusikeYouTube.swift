@@ -85,6 +85,7 @@ final class MusikeYouTube: NSObject, WKScriptMessageHandler {
                 done(["error": "No audio format available for this video.", "code": "no_audio"])
                 return
             }
+            MusikeAudio.remember(url: url, duration: Double(Self.int(details["lengthSeconds"])))
             done([
                 "url": url,
                 "mime": best["mimeType"] as? String ?? "audio/mp4",
