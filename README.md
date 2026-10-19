@@ -418,8 +418,11 @@ musike/
 **Songs stopped playing, or "YouTube refused the stream"**
 YouTube changes often and yt-dlp keeps up. Open **Settings** and click **Update**. If the fix hasn't reached the Stable channel yet, pick **Nightly**.
 
-**"YouTube asked for an anti-bot check"**
-Pass cookies from a signed-in browser (Firefox works best on Windows):
+**"YouTube is asking this connection to prove it's not a bot"**
+YouTube asks this of some connections, mostly VPNs and shared networks (offices, universities, some providers). Musike first tries to get the audio another way, so you only see this message when that fails too.
+
+- If you use a VPN, turn it off and try again.
+- Running the server yourself, you can pass cookies from a signed-in browser (Firefox works best on Windows). YouTube may flag an account used this way, so prefer one you don't mind losing:
 
 ```bash
 YTDLP_EXTRA_ARGS="--cookies-from-browser firefox" pnpm start

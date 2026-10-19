@@ -4,6 +4,7 @@ import { mkdir, readdir, rename, rm, stat, utimes } from "node:fs/promises";
 import path from "node:path";
 import { ensureComponent } from "./bootstrap.js";
 import { config } from "./config.js";
+import { DEFAULT_CLIENTS, directAudio, fetchRemoteClients } from "./directAudio.js";
 import { tools } from "./tools.js";
 import { msg } from "./i18n.js";
 import { HttpError } from "./types.js";
@@ -86,7 +87,7 @@ function toHttpError(stderr: string): HttpError {
   if (/confirm you.re not a bot|Sign in to confirm/i.test(line)) {
     return new HttpError(503, msg("botCheck"), "bot_check");
   }
-  if (/Video unavailable|Private video|removed/i.test(line)) {
+  if (/Video unavailable|video is unavailable|Private video|removed/i.test(line)) {
     return new HttpError(404, msg("videoUnavailable"));
   }
   if (/age-restricted|inappropriate|confirm your age/i.test(line)) {
@@ -138,6 +139,41 @@ function expiryOf(url: string): number {
 const cache = new Map<string, Promise<Resolved>>();
 const resolvedAt = new Map<string, Resolved>();
 
+// When yt-dlp fails, the clients to ask YouTube directly (see directAudio.ts), refreshed from the repository.
+// Read lazily: directAudio.ts and this module import each other through search.ts.
+let directClients: string[] | null = null;
+let directClientsAt = 0;
+
+async function clientsForDirect(): Promise<string[]> {
+  if (Date.now() - directClientsAt > 6 * 3600_000) {
+    directClientsAt = Date.now();
+    directClients = (await fetchRemoteClients()) ?? directClients;
+  }
+  return directClients ?? DEFAULT_CLIENTS;
+}
+
+/**
+ * Plan B for audio: YouTube's bot check stops yt-dlp on some connections (VPNs, shared networks), and a YouTube
+ * change can break it until it's updated. Asking YouTube for the audio directly often still works. Video stays
+ * yt-dlp's job.
+ */
+async function resolveDirect(id: string, ytdlpError: unknown): Promise<Resolved> {
+  // Removed, private or age-restricted videos won't play any other way either.
+  if (ytdlpError instanceof HttpError && (ytdlpError.status === 403 || ytdlpError.status === 404)) throw ytdlpError;
+  try {
+    const direct = await directAudio(id, await clientsForDirect());
+    return {
+      id,
+      title: direct.title,
+      duration: direct.duration,
+      audio: { formatId: "direct", url: direct.url, headers: {}, mime: direct.mime },
+      expiresAt: direct.expiresAt - 10 * 60_000,
+    };
+  } catch {
+    throw ytdlpError; // yt-dlp's error says more, and may offer the update
+  }
+}
+
 export function resolveStreams(id: string): Promise<Resolved> {
   const done = resolvedAt.get(id);
   if (done && done.expiresAt > Date.now()) return Promise.resolve(done);
@@ -145,12 +181,12 @@ export function resolveStreams(id: string): Promise<Resolved> {
   if (inflight) return inflight;
 
   const job = run(["-J", "--no-playlist", "--no-warnings", `https://www.youtube.com/watch?v=${id}`], RESOLVE_TIMEOUT_MS)
-    .then((stdout) => {
+    .then((stdout): Resolved => {
       const info = JSON.parse(stdout) as { title: string; duration?: number; formats: RawFormat[] };
       const audio = pickAudio(info.formats);
       if (!audio) throw new HttpError(404, msg("noAudio"));
       const video = pickVideo(info.formats);
-      const resolved: Resolved = {
+      return {
         id,
         title: info.title,
         duration: info.duration ?? 0,
@@ -158,6 +194,9 @@ export function resolveStreams(id: string): Promise<Resolved> {
         video: video ? toStream(video, "video") : undefined,
         expiresAt: expiryOf(audio.url!),
       };
+    })
+    .catch((err) => resolveDirect(id, err))
+    .then((resolved) => {
       resolvedAt.set(id, resolved);
       return resolved;
     })
