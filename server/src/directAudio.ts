@@ -26,11 +26,14 @@ export interface DirectAudio {
 export const validClients = (v: unknown): string[] | null =>
   Array.isArray(v) && v.length > 0 && v.every((c) => typeof c === "string" && /^[A-Z_]{2,30}$/.test(c)) ? (v as string[]) : null;
 
-/** The client list published in the repository, or null when it can't be read. */
-export async function fetchRemoteClients(): Promise<string[] | null> {
+/**
+ * The client list published in the repository, or null when it can't be read. `clients` is the list for the server
+ * and Android; a platform can have its own (`ios`).
+ */
+export async function fetchRemoteClients(key: "clients" | "ios" = "clients"): Promise<string[] | null> {
   try {
     const res = await fetch(REMOTE_CONFIG, { signal: AbortSignal.timeout(6000) });
-    return validClients(((await res.json()) as { clients?: unknown }).clients);
+    return validClients(((await res.json()) as Record<string, unknown>)[key]);
   } catch {
     return null; // offline or no config: keep what we have
   }

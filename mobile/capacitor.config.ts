@@ -1,5 +1,9 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
+// Built against a Musike server (MUSIKE_SERVER_URL=https://musike.example.com): the app then loads that instance.
+// Without it, the backend runs inside the app (see web/src/native).
+const serverUrl = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.MUSIKE_SERVER_URL;
+
 const config: CapacitorConfig = {
   appId: "app.musike.android",
   appName: "Musike",
@@ -10,7 +14,19 @@ const config: CapacitorConfig = {
     // Music keeps loading while the screen is off or another app is in front.
     allowMixedContent: false,
   },
+  ios: {
+    // The status bar area is padded by the app itself, like on Android.
+    contentInset: "never",
+    scrollEnabled: true,
+    backgroundColor: "#0B0C0F",
+  },
+  ...(serverUrl ? { server: { url: serverUrl, cleartext: false } } : {}),
   plugins: {
+    Keyboard: {
+      // The web view shrinks with the keyboard, so the search box and its results stay in view.
+      resize: "native",
+      resizeOnFullScreen: true,
+    },
     SystemBars: {
       // The app already pads itself with env(safe-area-inset-*), like on an iPhone.
       insetsHandling: "native",
