@@ -1,10 +1,10 @@
-// Builds the iOS app as an unsigned .ipa and copies it to release/Musike-Setup-<version>-iOS-unsigned.ipa at the
-// repository root, next to the desktop and Android downloads.
+// Builds the iOS app as an unsigned .ipa and copies it to release/Musike-iOS-<version>.ipa at the repository root,
+// next to the desktop and Android downloads.
 // Needs macOS with Xcode 15+ (xcodebuild). The .ipa is not signed on purpose: Sideloadly, AltStore, TrollStore and
 // friends sign it with the user's own certificate when installing.
 //
 // MUSIKE_SERVER_URL=https://musike.example.com builds the app against that Musike server instead of the backend
-// inside the app; the file is then named ...-iOS-server-unsigned.ipa.
+// inside the app; the file is then named Musike-iOS-<version>-server.ipa.
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -46,8 +46,8 @@ if (!existsSync(bundle)) {
 rmSync(staging, { recursive: true, force: true });
 mkdirSync(join(staging, "Payload"), { recursive: true });
 run("cp", ["-R", bundle, join(staging, "Payload", "Musike.app")]);
-const kind = process.env.MUSIKE_SERVER_URL ? "server" : "app";
-const target = join(root, "..", "release", `Musike-Setup-${version}-iOS-${kind}-unsigned.ipa`);
+const suffix = process.env.MUSIKE_SERVER_URL ? "-server" : "";
+const target = join(root, "..", "release", `Musike-iOS-${version}${suffix}.ipa`);
 mkdirSync(dirname(target), { recursive: true });
 rmSync(target, { force: true });
 run("zip", ["-qry", target, "Payload"], staging);
