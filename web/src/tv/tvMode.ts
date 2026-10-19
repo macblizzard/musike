@@ -1,8 +1,8 @@
 /**
  * Android TV mode: 10-foot UI plus D-pad spatial navigation.
  *
- * Enabled by VITE_TV=1 at build time (tools/build-apk-tv.sh) or by opening the app with ?tv=1,
- * so the normal desktop/mobile builds are untouched.
+ * Turned on automatically when the Android app runs on a TV (web/src/native/android.ts), by VITE_TV=1 at build
+ * time, or by opening the app with ?tv=1 (handy for trying it in a browser). Everywhere else it stays off.
  *
  * Rules: geometry in document space (rails stay navigable when an item is scrolled out), candidates
  * overlapping the current element on the other axis win, the nearest scrollable ancestor is scrolled
@@ -38,11 +38,19 @@ function shown(el: HTMLElement): boolean {
   return r.width >= 4 && r.height >= 4;
 }
 
-/** The topmost open dialog/sheet, if any. While one is open the D-pad stays inside it. */
+/** On screen, even while still transparent: dialogs open with a fade-in, and must count from the first frame. */
+function present(el: HTMLElement): boolean {
+  const style = getComputedStyle(el);
+  if (style.display === "none" || style.visibility === "hidden") return false;
+  const r = el.getBoundingClientRect();
+  return r.width >= 4 && r.height >= 4;
+}
+
+/** The topmost open dialog, sheet or menu, if any. While one is open the D-pad stays inside it. */
 function activeDialog(): HTMLElement | null {
   const nodes = Array.from(
-    document.querySelectorAll<HTMLElement>('[role="dialog"], [aria-modal="true"], dialog[open]'),
-  ).filter(shown);
+    document.querySelectorAll<HTMLElement>('[role="dialog"], [aria-modal="true"], dialog[open], [role="menu"]'),
+  ).filter(present);
   return nodes.length ? nodes[nodes.length - 1] : null;
 }
 
@@ -204,7 +212,9 @@ export function installTvMode() {
       }
 
       if (key === "Escape" || key === "BrowserBack" || key === "GoBack") {
-        if (activeDialog()) return;                        // the app's own Escape handler closes it
+        // A dialog or a menu is open: the app's own Escape handler closes it (and nothing else).
+        const overlay = [...document.querySelectorAll<HTMLElement>("[data-escape-closes]")].some(shown);
+        if (activeDialog() || overlay) return;
         if (window.history.length > 1) {
           handled();
           window.history.back();

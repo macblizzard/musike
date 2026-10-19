@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 @custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
-/* The wide (labelled) rail, from 1280px up unless the user chose a compact sidebar in Settings. */
+/* The wide (labelled) rail, from 1280px up unless the user chose a compact sidebar in Settings (always compact on TV). */
 @custom-variant wide {
   @media (width >= 80rem) {
-    &:where(html:not([data-rail="compact"]) *) {
+    &:where(html:not([data-rail="compact"]):not([data-tv="1"]) *) {
       @slot;
     }
   }

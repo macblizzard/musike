@@ -1,8 +1,23 @@
 import { App } from "@capacitor/app";
-import { Capacitor, SystemBars, SystemBarsStyle } from "@capacitor/core";
+import { Capacitor, registerPlugin, SystemBars, SystemBarsStyle } from "@capacitor/core";
+import { installTvMode } from "../tv/tvMode";
 
-// How the app fits into Android itself: the Back button and the system bars.
+/** MusikeDevicePlugin.java: what kind of device this is. */
+const Device = registerPlugin<{ info(): Promise<{ tv: boolean }> }>("MusikeDevice", {
+  web: () => ({ info: async () => ({ tv: false }) }),
+});
+
+// How the app fits into Android itself: Android TV, the Back button and the system bars.
 if (Capacitor.isNativePlatform()) {
+  // One APK for phones and TVs: on a TV, switch to the remote-friendly 10-foot UI (web/src/tv).
+  void Device.info()
+    .then(({ tv }) => {
+      if (!tv) return;
+      document.documentElement.dataset.tv = "1";
+      installTvMode();
+    })
+    .catch(() => {});
+
   // Back closes what's on top (a dialog, a menu), then goes back through pages, then sends the app to the
   // background, where the music keeps playing.
   void App.addListener("backButton", () => {

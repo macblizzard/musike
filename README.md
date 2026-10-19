@@ -7,7 +7,7 @@
 **Your music, uninterrupted.**
 
 A personal music player for YouTube's catalog: any song or music video, as **audio** or **video**, with no ads, no account and no subscription.
-Runs as a **Windows**, **macOS** and **Linux** app, as an **Android** app that needs no computer, in any **browser** (installable PWA) and in **Docker**.
+Runs as a **Windows**, **macOS** and **Linux** app, as an **Android** and **Android TV** app that needs no computer, in any **browser** (installable PWA) and in **Docker**.
 
 ![MIT license](https://img.shields.io/badge/license-MIT-c3ec52?style=flat-square&labelColor=121318)
 ![Windows, macOS and Linux](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-c3ec52?style=flat-square&labelColor=121318)
@@ -90,6 +90,7 @@ Musike started from the idea behind the old Discord music bots: a server that fe
 - **Standalone:** no computer, no server. The phone searches YouTube Music and plays the audio straight from YouTube
 - Same app as on the computer: search, genres, artists, albums, Search a list, playlists, favorites, themes and colors
 - Keeps playing with the screen off, with controls in the notification, on the lock screen and on headphones; pauses for calls and when headphones are unplugged
+- **Android TV:** the same app appears in the TV launcher and switches to a bigger interface you navigate with the remote
 - Audio only for now (no video mode)
 
 **Self-hosting**
@@ -216,6 +217,7 @@ On the phone, download `Musike-Setup-<version>-Android.apk` from the [latest rel
 - Your playlists and favorites live on the phone. To move them to or from a computer, use [backup to a file](#moving-your-library-backup) (on Android, Export opens the share sheet: save to Files or Drive, or send it to yourself).
 - **To update,** install the new APK over the old one. Your library stays.
 - Audio only for now: the video mode is available on the desktop app and in the browser.
+- **Android TV:** install the same APK on the TV (for example with a file manager app, or `adb install`). Musike shows up in the TV launcher and switches to a remote-friendly interface by itself.
 
 To build the APK yourself you need JDK 21 and the Android SDK (Android Studio installs both): `pnpm install && pnpm --filter @musike/mobile apk` (creates `release/Musike-Setup-<version>-Android.apk`; unsigned unless `mobile/android/keystore.properties` points to your signing key).
 
@@ -397,6 +399,7 @@ musike/
 │     ├─ views/         Home, Search, Library, playlists, genres, artists, albums
 │     ├─ i18n/          English (the source) and Portuguese
 │     ├─ native/        Android: server code running in the app, streams, media controls
+│     ├─ tv/            Android TV: remote (D-pad) navigation and the 10-foot interface
 │     └─ stores/        state (zustand), appearance preferences
 ├─ desktop/           Electron: window, built-in server, Windows installer, macOS and Linux packages
 ├─ mobile/            Android app (Capacitor): playback service, signing, streaming.json
