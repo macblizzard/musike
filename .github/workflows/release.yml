@@ -1,5 +1,6 @@
 # Builds every download for a release tag (v1.4.0) and attaches them to a draft GitHub release:
-# the Windows installer, the macOS apps (Apple Silicon and Intel), the Linux packages and the Android APK.
+# the Windows installer, the macOS apps (Apple Silicon and Intel), the Linux packages, the Android APK and the
+# unsigned iOS app.
 # The draft only goes public when it's published by hand, after checking it.
 #
 # The APK is signed with the key in these repository secrets (Settings → Secrets and variables → Actions):
@@ -131,8 +132,32 @@ jobs:
           path: release/*
           if-no-files-found: error
 
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Unsigned on purpose: AltStore, SideStore or Sideloadly sign it with the user's own Apple ID when installing.
+      - run: pnpm --filter @musike/mobile ipa
+      - name: Check downloads
+        shell: bash
+        run: |
+          { echo "### iOS"; ls release | sed 's/^/- /'; } >> "$GITHUB_STEP_SUMMARY"
+          found=$(ls release/*-iOS.ipa 2>/dev/null | wc -l)
+          [ "$found" -eq 1 ] || { echo "::error::Expected 1 file(s) matching *-iOS.ipa, found $found"; ls -l release; exit 1; }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ios
+          path: release/*
+          if-no-files-found: error
+
   release:
-    needs: [windows, mac, linux, android]
+    needs: [windows, mac, linux, android, ios]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

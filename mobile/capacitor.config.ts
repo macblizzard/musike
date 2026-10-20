@@ -23,9 +23,9 @@ const config: CapacitorConfig = {
   ...(serverUrl ? { server: { url: serverUrl, cleartext: false } } : {}),
   plugins: {
     Keyboard: {
-      // The web view shrinks with the keyboard, so the search box and its results stay in view.
+      // iOS: the web view shrinks with the keyboard, so the search box and its results stay in view. (Android already
+      // makes room through SystemBars; its resizeOnFullScreen workaround would shrink the page a second time.)
       resize: "native",
-      resizeOnFullScreen: true,
     },
     SystemBars: {
       // The app already pads itself with env(safe-area-inset-*), like on an iPhone.

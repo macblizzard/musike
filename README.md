@@ -7,18 +7,18 @@
 **Your music, uninterrupted.**
 
 A personal music player for YouTube's catalog: any song or music video, as **audio** or **video**, with no ads, no account and no subscription.
-Runs as a **Windows**, **macOS** and **Linux** app, as an **Android** and **Android TV** app that needs no computer, in any **browser** (installable PWA) and in **Docker**.
+Runs as a **Windows**, **macOS** and **Linux** app, as an **Android**, **Android TV** and **iPhone** app that needs no computer, in any **browser** (installable PWA) and in **Docker**.
 
 ![MIT license](https://img.shields.io/badge/license-MIT-c3ec52?style=flat-square&labelColor=121318)
 ![Windows, macOS and Linux](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-c3ec52?style=flat-square&labelColor=121318)
-![Android](https://img.shields.io/badge/mobile-Android-c3ec52?style=flat-square&labelColor=121318)
+![Android and iOS](https://img.shields.io/badge/mobile-Android%20%7C%20iOS-c3ec52?style=flat-square&labelColor=121318)
 ![Web and PWA](https://img.shields.io/badge/web-PWA-c3ec52?style=flat-square&labelColor=121318)
 ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-c3ec52?style=flat-square&labelColor=121318)
 ![TypeScript](https://img.shields.io/badge/TypeScript-100%25-c3ec52?style=flat-square&labelColor=121318)
 
 <img src="docs/screenshots/home.jpg" alt="Musike playing Radiohead, with playlists, recently played and the Now Playing panel" width="900" />
 
-**[Download for Windows, macOS, Linux and Android](https://github.com/Ernani1234/musike/releases/latest)** · [Run with Docker](#option-5-docker) · [Run from source](#option-6-node-server--browser)
+**[Download for Windows, macOS, Linux, Android and iPhone](https://github.com/Ernani1234/musike/releases/latest)** · [Run with Docker](#option-6-docker) · [Run from source](#option-7-node-server--browser)
 
 </div>
 
@@ -86,10 +86,11 @@ Musike started from the idea behind the old Discord music bots: a server that fe
 - Updating keeps your library (it's backed up automatically before each update)
 - Downloads and maintains the tools it needs (yt-dlp, Deno, FFmpeg)
 
-**Android app**
+**Android and iPhone apps**
 - **Standalone:** no computer, no server. The phone searches YouTube Music and plays the audio straight from YouTube
 - Same app as on the computer: search, genres, artists, albums, Search a list, playlists, favorites, themes and colors
 - Keeps playing with the screen off, with controls in the notification, on the lock screen and on headphones; pauses for calls and when headphones are unplugged
+- **iPhone:** the same app for iOS, installed with AltStore, SideStore or Sideloadly
 - **Android TV:** the same app appears in the TV launcher and switches to a bigger interface you navigate with the remote
 - Audio only for now (no video mode)
 
@@ -221,7 +222,20 @@ On the phone, download `Musike-Setup-<version>-Android.apk` from the [latest rel
 
 To build the APK yourself you need JDK 21 and the Android SDK (Android Studio installs both): `pnpm install && pnpm --filter @musike/mobile apk` (creates `release/Musike-Setup-<version>-Android.apk`; unsigned unless `mobile/android/keystore.properties` points to your signing key).
 
-### Option 5: Docker
+### Option 5: iPhone app
+
+Download `Musike-Setup-<version>-iOS.ipa` from the [latest release](https://github.com/Ernani1234/musike/releases/latest). Apple only lets App Store apps install directly, so the file comes unsigned and is signed with your own Apple ID as you install it, using one of these free tools:
+
+- **AltStore** or **SideStore:** install the store on the iPhone, then open the `.ipa` with it.
+- **Sideloadly:** on a Windows or Mac computer, connect the iPhone and drag the `.ipa` into it. Then trust your Apple ID in **Settings > General > VPN & Device Management**.
+
+On iOS 16 and newer, also turn on **Settings > Privacy & Security > Developer Mode** the first time. With a free Apple ID the app has to be signed again every 7 days; AltStore and SideStore do it on their own in the background. Requires iOS 15 or newer.
+
+Like on Android, it works on its own (no computer or server), keeps playing with the screen locked, and has controls on the lock screen, in Control Center and on headphones. Audio only for now.
+
+To build it yourself on a Mac with Xcode: `pnpm install && pnpm --filter @musike/mobile ipa` (creates `release/Musike-Setup-<version>-iOS.ipa`).
+
+### Option 6: Docker
 
 For a home server, NAS or Raspberry Pi. The image (amd64 and arm64) includes yt-dlp, Deno and FFmpeg.
 
@@ -253,7 +267,7 @@ Or with plain Docker: `docker run -d -p 4180:4180 -v musike-data:/data -v musike
 
 > **Run it at home, not on a VPS:** YouTube blocks datacenter IPs ("Sign in to confirm you're not a bot"). A home server uses your residential IP.
 
-### Option 6: Node server + browser
+### Option 7: Node server + browser
 
 Requirements:
 
@@ -402,7 +416,7 @@ musike/
 │     ├─ tv/            Android TV: remote (D-pad) navigation and the 10-foot interface
 │     └─ stores/        state (zustand), appearance preferences
 ├─ desktop/           Electron: window, built-in server, Windows installer, macOS and Linux packages
-├─ mobile/            Android app (Capacitor): playback service, signing, streaming.json
+├─ mobile/            Android and iOS apps (Capacitor): native playback, signing, streaming.json
 ├─ Dockerfile         server + web app image (amd64, arm64)
 └─ docs/              UX benchmark, design system and screenshots
 ```
@@ -450,6 +464,7 @@ iOS limits background playback for PWAs; Audio mode works better than Video.
 - [x] macOS app
 - [x] Linux app
 - [x] Android app (audio)
+- [x] iPhone app (audio, sideloaded)
 - [ ] Cloud sync for the library (today: [backup to a file](#moving-your-library-backup))
 - [ ] Import YouTube playlists from a link
 - [ ] Video mode on Android
