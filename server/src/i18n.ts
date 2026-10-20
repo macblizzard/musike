@@ -9,6 +9,7 @@ type Params = Record<string, string | number>;
 const en = {
   invalidVideoId: "Invalid video ID.",
   emptyQuery: "Type something to search.",
+  searchFailed: "Search is unavailable right now ({detail}). Try again in a moment.",
   missingTitle: "Give the song's title.",
   notBackup: "This file isn't a Musike backup.",
   newerBackup: "This backup was made by a newer Musike. Update the app to import it.",
@@ -59,6 +60,7 @@ export type MsgKey = keyof typeof en;
 const pt: Record<MsgKey, string> = {
   invalidVideoId: "ID de vídeo inválido.",
   emptyQuery: "Digite algo para buscar.",
+  searchFailed: "A busca está indisponível agora ({detail}). Tente de novo em instantes.",
   missingTitle: "Informe o título da música.",
   notBackup: "Este arquivo não é um backup do Musike.",
   newerBackup: "Backup de uma versão mais nova do Musike. Atualize o app para importar.",

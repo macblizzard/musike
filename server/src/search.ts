@@ -1,8 +1,8 @@
 import { Innertube } from "youtubei.js";
 import { config } from "./config.js";
-import { youtubeLang, type Lang } from "./i18n.js";
+import { msg, youtubeLang, type Lang } from "./i18n.js";
 import type { Track } from "./types.js";
-import { VIDEO_ID } from "./types.js";
+import { HttpError, VIDEO_ID } from "./types.js";
 import { ytdlpSearch } from "./ytdlp.js";
 
 // One session per language: YouTube Music words its own texts (genre names, artist bios) in the session's language.
@@ -69,16 +69,60 @@ export function toTrack(item: any, kind: Track["kind"]): Track | null {
   };
 }
 
-export async function search(query: string, type: "song" | "video", lang?: Lang): Promise<Track[]> {
-  try {
-    const result = await withClient((yt) => yt.music.search(query, { type }), lang);
-    const shelf = result.contents?.[0] as { contents?: unknown[] } | undefined;
-    const tracks = (shelf?.contents ?? []).map((i) => toTrack(i, type)).filter((t): t is Track => !!t);
-    if (tracks.length) return tracks;
-  } catch {
-    // fall through to yt-dlp search
+/** Tracks from every shelf of a search response, not just the first (a "did you mean" block can come first). */
+function tracksFrom(result: { contents?: unknown }, kind: Track["kind"]): Track[] {
+  const seen = new Set<string>();
+  const tracks: Track[] = [];
+  const sections = Array.isArray(result.contents) ? (result.contents as { contents?: unknown }[]) : [];
+  for (const section of sections) {
+    for (const item of Array.isArray(section?.contents) ? section.contents : []) {
+      const track = toTrack(item, kind);
+      if (track && !seen.has(track.id)) {
+        seen.add(track.id);
+        tracks.push(track);
+      }
+    }
   }
-  const entries = await ytdlpSearch(query);
+  return tracks;
+}
+
+/** Short enough for an error message: "HTTP 403" rather than the whole request URL. */
+function reason(e: unknown): string {
+  const message = (e as Error)?.message || String(e);
+  const status = /status code (\d{3})/.exec(message)?.[1];
+  return status ? `HTTP ${status}` : message.slice(0, 80);
+}
+
+/**
+ * YouTube Music first; then plain YouTube search (another endpoint, videos only), which also covers the Android app,
+ * where there is no yt-dlp; then yt-dlp on a computer.
+ */
+export async function search(query: string, type: "song" | "video", lang?: Lang): Promise<Track[]> {
+  const failures: string[] = [];
+  try {
+    const tracks = tracksFrom(await withClient((yt) => yt.music.search(query, { type }), lang), type);
+    if (tracks.length) return tracks;
+    failures.push("YouTube Music: no results");
+  } catch (e) {
+    failures.push(`YouTube Music: ${reason(e)}`);
+  }
+  try {
+    const result = await withClient((yt) => yt.search(query, { type: "video" }), lang);
+    const tracks = (result.videos ?? []).map((v) => toTrack(v, "video")).filter((t): t is Track => !!t);
+    if (tracks.length) return tracks;
+    failures.push("YouTube: no results");
+  } catch (e) {
+    failures.push(`YouTube: ${reason(e)}`);
+  }
+  let entries: Awaited<ReturnType<typeof ytdlpSearch>>;
+  try {
+    entries = await ytdlpSearch(query);
+  } catch (err) {
+    // yt-dlp's own problem (missing, outdated) is what to fix on a computer. On a phone there is no yt-dlp, so say
+    // what YouTube answered: that's what a bug report needs.
+    if (err instanceof HttpError) throw err;
+    throw new HttpError(503, msg("searchFailed", { detail: failures.join("; ") }));
+  }
   return entries
     .filter((e) => VIDEO_ID.test(e.id))
     .map((e) => ({
@@ -146,9 +190,7 @@ export async function findVideoFor(id: string, title: string, artist: string, du
 }
 
 async function videoSearch(query: string): Promise<Track[]> {
-  const result = await withClient((yt) => yt.music.search(query, { type: "video" }));
-  const shelf = result.contents?.[0] as { contents?: unknown[] } | undefined;
-  return (shelf?.contents ?? []).map((i) => toTrack(i, "video")).filter((t): t is Track => !!t);
+  return tracksFrom(await withClient((yt) => yt.music.search(query, { type: "video" })), "video");
 }
 
 function pickClip(candidates: Track[], title: string, artist: string, duration: number): Track | null {
