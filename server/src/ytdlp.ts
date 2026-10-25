@@ -22,6 +22,8 @@ export interface Resolved {
   title: string;
   duration: number;
   audio: StreamFormat;
+  /** Every audio format, best first — lets the proxy retry when one URL is refused. */
+  audioAll?: StreamFormat[];
   video?: StreamFormat;
   expiresAt: number;
 }
@@ -115,14 +117,27 @@ function toStream(f: RawFormat, kind: "audio" | "video"): StreamFormat {
   return { formatId: f.format_id, url: f.url!, headers: f.http_headers ?? {}, mime };
 }
 
-function pickAudio(formats: RawFormat[]): RawFormat | undefined {
+/**
+ * Every audio format, best first. YouTube refuses (HTTP 403) individual itags per session —
+ * format 140 has been observed blocked while 251 or 139 still played for the same video — so
+ * callers need the whole ladder, not a single pick. 140 leads because AAC/MP4 plays everywhere,
+ * including iOS Safari; Opus/WebM follows.
+ */
+const AUDIO_PREFERENCE = ["140", "251", "250", "249", "139"];
+
+export function pickAudioAll(formats: RawFormat[]): RawFormat[] {
   const audio = formats.filter((f) => isAudioOnly(f) && isHttps(f));
-  // AAC in MP4 plays everywhere, including iOS Safari. Opus/WebM is the fallback.
-  return (
-    audio.find((f) => f.format_id === "140") ??
-    audio.filter((f) => f.ext === "m4a").sort((a, b) => (b.abr ?? 0) - (a.abr ?? 0))[0] ??
-    audio.sort((a, b) => (b.abr ?? 0) - (a.abr ?? 0))[0]
-  );
+  const ranked: RawFormat[] = [];
+  for (const want of AUDIO_PREFERENCE) {
+    const hit = audio.find((f) => f.format_id === want);
+    if (hit) ranked.push(hit);
+  }
+  const rest = audio.filter((f) => !ranked.includes(f)).sort((a, b) => (b.abr ?? 0) - (a.abr ?? 0));
+  return [...ranked, ...rest];
+}
+
+function pickAudio(formats: RawFormat[]): RawFormat | undefined {
+  return pickAudioAll(formats)[0];
 }
 
 function pickVideo(formats: RawFormat[]): RawFormat | undefined {
@@ -157,6 +172,7 @@ export function resolveStreams(id: string): Promise<Resolved> {
         title: info.title,
         duration: info.duration ?? 0,
         audio: toStream(audio, "audio"),
+        audioAll: pickAudioAll(info.formats).map((f) => toStream(f, "audio")),
         video: video ? toStream(video, "video") : undefined,
         expiresAt: expiryOf(audio.url!),
       };
@@ -290,13 +306,22 @@ export function progressiveAudio(id: string): Promise<string | null> {
   return job;
 }
 
-/** Writes the resolved audio to a file at full speed, re-resolving once if the URL expired. */
+/**
+ * Writes the resolved audio to a file at full speed. Walks the AAC ladder (140 -> 139 -> any
+ * other m4a) because YouTube refuses individual itags per session, then re-resolves once in case
+ * every URL for the track has expired. Only AAC/MP4 is considered: the caller remuxes this into a
+ * progressive MP4, and Opus/WebM would not survive that as an iOS-playable file.
+ */
 async function downloadAudio(id: string, file: string): Promise<void> {
-  const attempt = async (fresh: boolean): Promise<boolean> => {
-    if (fresh) invalidate(id);
-    const { audio } = await resolveStreams(id);
-    // googlevideo throttles a plain full-file GET to roughly 32 KiB/s; a byte range is not.
-    const res = await fetch(audio.url, { headers: { ...audio.headers, Range: "bytes=0-" } });
+  const candidates = async (): Promise<StreamFormat[]> => {
+    const resolved = await resolveStreams(id);
+    const ladder = resolved.audioAll ?? [resolved.audio];
+    const aac = ladder.filter((c) => c.mime === "audio/mp4");
+    return aac.length > 0 ? aac : [resolved.audio];
+  };
+  // googlevideo throttles a plain full-file GET to roughly 32 KiB/s; a byte range is not.
+  const tryFetch = async (candidate: StreamFormat): Promise<boolean> => {
+    const res = await fetch(candidate.url, { headers: { ...candidate.headers, Range: "bytes=0-" } });
     if (res.status === 403 || res.status === 410) {
       await res.body?.cancel();
       return false;
@@ -307,9 +332,14 @@ async function downloadAudio(id: string, file: string): Promise<void> {
     await pipeline(Readable.fromWeb(res.body as never), createWriteStream(file));
     return true;
   };
-  if (!(await attempt(false)) && !(await attempt(true))) {
-    throw new HttpError(502, msg("streamRefused", { status: 403 }), "maybe_outdated");
+  for (const candidate of await candidates()) {
+    if (await tryFetch(candidate)) return;
   }
+  invalidate(id);
+  for (const candidate of await candidates()) {
+    if (await tryFetch(candidate)) return;
+  }
+  throw new HttpError(502, msg("streamRefused", { status: 403 }), "maybe_outdated");
 }
 
 /** Stream-copies a fragmented MP4 into a progressive one: moov + sample table ahead of the data. */

@@ -56,11 +56,38 @@ export async function proxyStream(req: FastifyRequest, reply: FastifyReply, id: 
     forward = `bytes=${total - want}-${total - 1}`;
     upstream = await request(fmt, forward);
   }
-  // Expired or rejected URL: resolve again once.
+  // 403/410 is either an expired URL or a format YouTube is refusing for this session.
+  // Re-resolving alone repeats the same pick, so for audio walk the format ladder first
+  // (140 -> 251 -> 250 -> 249 -> 139) and only then fall back to a fresh resolve.
   if (upstream.status === 403 || upstream.status === 410) {
     await upstream.body?.cancel();
-    fmt = await pick(true);
-    upstream = await request(fmt, forward);
+    let recovered = false;
+    if (kind === "audio") {
+      const ladder = (await resolveStreams(id)).audioAll ?? [];
+      for (const candidate of ladder) {
+        if (candidate.formatId === fmt.formatId) continue;
+        let attempt = await request(candidate, forward);
+        if (attempt.status === 416 && suffix) {
+          // A different itag has a different length, so the tail range has to be re-asked.
+          await attempt.body?.cancel();
+          const total = await contentSize(candidate);
+          const want = suffix[1] ? Math.min(Number(suffix[1]), total) : total;
+          forward = `bytes=${total - want}-${total - 1}`;
+          attempt = await request(candidate, forward);
+        }
+        if (attempt.ok) {
+          fmt = candidate;
+          upstream = attempt;
+          recovered = true;
+          break;
+        }
+        await attempt.body?.cancel();
+      }
+    }
+    if (!recovered) {
+      fmt = await pick(true);
+      upstream = await request(fmt, forward);
+    }
   }
   if (!upstream.ok || !upstream.body) {
     throw new HttpError(502, msg("streamRefused", { status: upstream.status }), "maybe_outdated");
