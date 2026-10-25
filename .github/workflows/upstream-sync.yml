@@ -102,10 +102,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          VERSION: ${{ steps.sync.outputs.version }}
         run: |
-          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Upstream sync needs a human in:title" --json number --jq .[0].number // empty)
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Upstream sync needs a human in:title" --json number --jq '.[0].number // empty')
           [ -n "$existing" ] || exit 0
-          gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "Resolved: \`$(cat .upstream-base)\` merged cleanly with every modded feature intact (version \`${{ steps.sync.outputs.version || unchanged }}\`). Run: $RUN"
+          {
+            echo "Resolved: $(cat .upstream-base) merged cleanly with every modded feature intact (version ${VERSION:-unchanged})."
+            echo ""
+            echo "Run: $RUN"
+          } > /tmp/close.md
+          gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body-file /tmp/close.md
           gh issue close "$existing" --repo "$GITHUB_REPOSITORY" --reason completed
 
   build:
