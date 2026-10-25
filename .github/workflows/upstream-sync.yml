@@ -48,8 +48,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
+          node-version: 22 # no pnpm cache here: the store only exists once a merge actually installs
 
       - name: Merge, verify the modded features, typecheck, bump the version
         id: sync
