@@ -21,7 +21,7 @@ export function BackupSection() {
     setBusy("export");
     try {
       const backup = await createBackup();
-      downloadBackup(backup);
+      await downloadBackup(backup);
       const s = summarize(backup);
       toast(t.backup.created(s.playlists, s.favorites));
     } catch (e) {

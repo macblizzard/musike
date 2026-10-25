@@ -1,8 +1,9 @@
 import { getLang, getT, isLang, useI18n } from "../i18n";
 import { usePlayer } from "../player/player";
+import { cleanAppearance, currentAppearance, useAppearance, type Appearance } from "../stores/appearance";
 import { useLibrary } from "../stores/library";
 import { useUi } from "../stores/ui";
-import { api, type ImportResult } from "./api";
+import { api, saveFile, type ImportResult } from "./api";
 import type { Library } from "./types";
 
 /**
@@ -18,6 +19,7 @@ export interface Backup {
   settings?: {
     theme?: "dark" | "light";
     lang?: string;
+    appearance?: Partial<Appearance>;
     preferVideo?: boolean;
     quality?: "sd" | "hd";
     autoRadio?: boolean;
@@ -37,6 +39,7 @@ export async function createBackup(): Promise<Backup> {
     settings: {
       theme: useUi.getState().theme,
       lang: getLang(),
+      appearance: currentAppearance(),
       preferVideo: p.preferVideo,
       quality: p.quality,
       autoRadio: p.autoRadio,
@@ -45,17 +48,9 @@ export async function createBackup(): Promise<Backup> {
   };
 }
 
-/** Saves the backup as a file (browsers download it; the desktop app shows a "Save as" dialog). */
-export function downloadBackup(backup: Backup) {
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `musike-backup-${backup.exportedAt.slice(0, 10)}.musike.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+/** Saves the backup as a file: a download in browsers, "Save as" on desktop, the share sheet on Android. */
+export function downloadBackup(backup: Backup): Promise<void> {
+  return saveFile(`musike-backup-${backup.exportedAt.slice(0, 10)}.musike.json`, JSON.stringify(backup, null, 2));
 }
 
 export async function readBackup(file: File): Promise<Backup> {
@@ -91,6 +86,7 @@ export async function restoreBackup(backup: Backup, mode: "merge" | "replace", a
     const player = usePlayer.getState();
     if (s.theme === "dark" || s.theme === "light") useUi.getState().setTheme(s.theme);
     if (isLang(s.lang)) useI18n.getState().setLang(s.lang);
+    if (s.appearance && typeof s.appearance === "object") useAppearance.getState().set(cleanAppearance(s.appearance));
     if (typeof s.autoRadio === "boolean") player.setAutoRadio(s.autoRadio);
     if (typeof s.volume === "number") player.setVolume(s.volume);
     if (s.quality === "sd" || s.quality === "hd") player.setQuality(s.quality);

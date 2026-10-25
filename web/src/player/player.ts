@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { getT, useT } from "../i18n";
-import { api, explainStreamError, streamUrl } from "../lib/api";
+import { api, capabilities, explainStreamError, streamSource, streamUrl, systemMedia, type ApiError, type ErrorCode } from "../lib/api";
+import { createAudio } from "../lib/audio";
 import { shuffled } from "../lib/format";
 import { read as readOffline } from "../lib/offline";
 import type { Track } from "../lib/types";
@@ -62,8 +63,8 @@ interface PlayerState {
 }
 
 // Media elements live outside React so playback survives any re-render or route change.
-const audio = new Audio();
-audio.preload = "auto";
+// On iOS this is the native player behind the same API (see lib/audio.ts).
+const audio = createAudio();
 
 export const videoEl = document.createElement("video");
 videoEl.playsInline = true;
@@ -203,7 +204,7 @@ const needsClipLookup = (track: Track, preferVideo: boolean) =>
 
 export const usePlayer = create<PlayerState>((set, get) => {
   const kindFor = (track: Track): Kind =>
-    get().preferVideo && (track.kind === "video" || !!clipFor.get(track.id)) ? "video" : "audio";
+    capabilities.video && get().preferVideo && (track.kind === "video" || !!clipFor.get(track.id)) ? "video" : "audio";
   /** The YouTube id to stream: the song itself, or its music video in Video mode. */
   const mediaIdFor = (track: Track, kind: Kind) =>
     kind === "video" && track.kind !== "video" ? clipFor.get(track.id)! : track.id;
@@ -287,9 +288,25 @@ export const usePlayer = create<PlayerState>((set, get) => {
     });
     media.volume = live.volume;
     media.muted = live.muted;
+    const start = (src: string) => {
+      media.src = src;
+      if (autoplay) play(media);
+    };
     // A warmed or kept track is already local, so starting it touches no network at all.
-    media.src = local ?? streamUrl(mediaId, kind, live.quality);
-    if (autoplay) play(media);
+    if (local) {
+      start(local);
+    } else {
+      // The server's proxy URL is known right away; on Android the stream is first resolved on the phone.
+      const source = streamSource(mediaIdFor(track, kind), kind, live.quality);
+      if (typeof source === "string") start(source);
+      else {
+        const mine = token;
+        source.then(
+          (src) => mine === token && start(src),
+          (err: ApiError) => mine === token && report(err.message, err.code),
+        );
+      }
+    }
     setMetadata(track);
   }
 
@@ -369,25 +386,39 @@ export const usePlayer = create<PlayerState>((set, get) => {
     set({ status: "paused", position: 0 });
   }
 
+  /** Shows why a track can't play, then moves on (unless every track would fail the same way). */
+  function report(message: string, code?: ErrorCode) {
+    const mine = token;
+    set({ status: "error", statusText: { error: message } });
+    const track = get().queue[get().index];
+    // Tool problems hit every track: offer the fix instead of skipping through the whole queue.
+    const toolProblem = code === "tool_missing" || code === "maybe_outdated";
+    const t = getT();
+    toast(
+      t.player.cantPlay(track?.title ?? t.player.aTrack, message),
+      "error",
+      toolProblem ? { label: code === "tool_missing" ? t.common.install : t.common.update, run: openSettings } : undefined,
+    );
+    if (code !== "tool_missing" && get().index < get().queue.length - 1) {
+      setTimeout(() => mine === token && get().next(), 2500);
+    }
+  }
+
+  // A stream URL that expired mid-song gets one fresh try from the same spot before giving up.
+  let retriedToken = -1;
+
   function onError(media: HTMLMediaElement) {
     const mine = token;
     const url = media.currentSrc || media.src;
+    if (capabilities.retryOnError && retriedToken !== mine) {
+      const at = media.currentTime || get().position;
+      load(get().index, { startAt: at, autoplay: true });
+      retriedToken = token;
+      return;
+    }
     set({ status: "error" });
     explainStreamError(url).then(({ message, code }) => {
-      if (mine !== token) return;
-      set({ statusText: { error: message } });
-      const track = get().queue[get().index];
-      // Tool problems hit every track: offer the fix instead of skipping through the whole queue.
-      const toolProblem = code === "tool_missing" || code === "maybe_outdated";
-      const t = getT();
-      toast(
-        t.player.cantPlay(track?.title ?? t.player.aTrack, message),
-        "error",
-        toolProblem ? { label: code === "tool_missing" ? t.common.install : t.common.update, run: openSettings } : undefined,
-      );
-      if (code !== "tool_missing" && get().index < get().queue.length - 1) {
-        setTimeout(() => mine === token && get().next(), 2500);
-      }
+      if (mine === token) report(message, code);
     });
   }
 
@@ -426,6 +457,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
       if (!isActive() || pendingSeek > 0) return;
       if (Math.abs(media.currentTime - get().position) >= 0.2) set({ position: media.currentTime });
       handOffBeforeEnd(media);
+      syncSystemMedia(); // throttled on the other side
     });
     media.addEventListener("progress", () => {
       if (!isActive() || !media.buffered.length) return;
@@ -467,7 +499,8 @@ export const usePlayer = create<PlayerState>((set, get) => {
     muted: saved.muted ?? false,
     shuffle: saved.shuffle ?? false,
     repeat: saved.repeat ?? "off",
-    preferVideo: saved.preferVideo ?? false,
+    // Builds without video (Android) always play audio, whatever a backup or an old session says.
+    preferVideo: capabilities.video && (saved.preferVideo ?? false),
     quality: saved.quality ?? "sd",
     autoRadio: saved.autoRadio ?? true,
 
@@ -629,6 +662,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     },
 
     setPreferVideo: (on) => {
+      if (on && !capabilities.video) return;
       set({ preferVideo: on });
       reloadIfKindChanged();
     },
@@ -679,6 +713,7 @@ document.addEventListener("visibilitychange", () => document.visibilityState ===
 // Media Session: lock-screen, headset and notification controls.
 
 function setMetadata(track: Track) {
+  systemMedia?.setTrack({ title: track.title, artist: track.artist, album: track.album ?? "", artwork: track.art || track.thumb });
   if (!("mediaSession" in navigator)) return;
   navigator.mediaSession.metadata = new MediaMetadata({
     title: track.title,
@@ -694,21 +729,42 @@ function setMetadata(track: Track) {
   });
 }
 
+/** The phone's notification and lock screen. A track that is loading is about to play, so it counts as playing:
+ *  reporting a pause between tracks would let Android stop the app in the background. */
+function syncSystemMedia() {
+  if (!systemMedia) return;
+  const { status, position, duration } = usePlayer.getState();
+  systemMedia.setState({ playing: status === "playing" || status === "loading", position, duration });
+}
+
 function syncPlaybackState() {
+  syncSystemMedia();
   if (!("mediaSession" in navigator)) return;
   navigator.mediaSession.playbackState = usePlayer.getState().status === "playing" ? "playing" : "paused";
   syncPositionState();
 }
 
 function syncPositionState() {
-  if (!("mediaSession" in navigator) || !navigator.mediaSession.setPositionState) return;
+  syncSystemMedia();
   const { duration, position } = usePlayer.getState();
+  if (!("mediaSession" in navigator) || !navigator.mediaSession.setPositionState) return;
   if (!Number.isFinite(duration) || duration <= 0) return;
   try {
     navigator.mediaSession.setPositionState({ duration, position: Math.min(position, duration), playbackRate: 1 });
   } catch {
     /* some browsers reject transient states */
   }
+}
+
+if (systemMedia) {
+  const p = () => usePlayer.getState();
+  systemMedia.onAction((action, position) => {
+    if (action === "play" && p().status !== "playing") p().toggle();
+    else if (action === "pause" && p().status === "playing") p().toggle();
+    else if (action === "next") p().next();
+    else if (action === "previous") p().prev();
+    else if (action === "seek" && position != null) p().seek(position);
+  });
 }
 
 if ("mediaSession" in navigator) {

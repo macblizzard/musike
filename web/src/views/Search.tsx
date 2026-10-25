@@ -11,6 +11,7 @@ import {
 } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import { AlbumGrid } from "../components/AlbumTiles";
 import { Artwork } from "../components/Artwork";
 import { GenrePanel } from "../components/GenrePanel";
 import { EmptyState, PageHeader } from "../components/Page";
@@ -20,7 +21,7 @@ import { api } from "../lib/api";
 import { useT } from "../i18n";
 import { cn } from "../lib/format";
 import { paths } from "../lib/routes";
-import type { Track } from "../lib/types";
+import type { AlbumCard, Track } from "../lib/types";
 import { usePlayer } from "../player/player";
 import { parseList } from "./BatchSearch";
 
@@ -54,7 +55,8 @@ function videoIdFromUrl(text: string): string | null {
   }
 }
 
-type Kind = "song" | "video";
+type Kind = "song" | "video" | "album";
+const KIND_PARAM: Record<Kind, string | null> = { song: null, video: "videos", album: "albums" };
 
 // The genre panel stays open when coming back from a genre page.
 let genresOpenMemo = false;
@@ -62,10 +64,11 @@ let genresOpenMemo = false;
 export default function Search() {
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
-  const kind: Kind = params.get("type") === "videos" ? "video" : "song";
+  const kind: Kind = params.get("type") === "videos" ? "video" : params.get("type") === "albums" ? "album" : "song";
   const t = useT();
   const [text, setText] = useState(q);
   const [results, setResults] = useState<Track[] | null>(null);
+  const [albums, setAlbums] = useState<AlbumCard[] | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [error, setError] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -89,7 +92,8 @@ export default function Search() {
   const setQuery = (next: string, nextKind = kind) => {
     const p = new URLSearchParams();
     if (next.trim()) p.set("q", next.trim());
-    if (nextKind === "video") p.set("type", "videos");
+    const type = KIND_PARAM[nextKind];
+    if (type) p.set("type", type);
     setParams(p, { replace: true });
   };
 
@@ -106,15 +110,18 @@ export default function Search() {
   useEffect(() => {
     if (!q) {
       setResults(null);
+      setAlbums(null);
       setState("idle");
       return;
     }
     const ctrl = new AbortController();
     setState("loading");
-    api
-      .search(q, kind, ctrl.signal)
-      .then((tracks) => {
-        setResults(tracks);
+    const found: Promise<number> =
+      kind === "album"
+        ? api.searchAlbums(q, ctrl.signal).then((list) => (setAlbums(list), setResults(null), list.length))
+        : api.search(q, kind, ctrl.signal).then((list) => (setResults(list), setAlbums(null), list.length));
+    found
+      .then(() => {
         setState("ok");
         const next = [q, ...readRecent().filter((r) => r.toLowerCase() !== q.toLowerCase())].slice(0, 8);
         saveRecent(next);
@@ -271,6 +278,7 @@ export default function Search() {
             <div role="tablist" aria-label={t.search.resultType} className="flex gap-2">
               {tab("song", t.search.songs)}
               {tab("video", t.search.videos)}
+              {tab("album", t.search.albums)}
             </div>
             <span className="flex-1" />
             <div className="flex items-center gap-1">
@@ -347,6 +355,12 @@ export default function Search() {
             }
           />
         )}
+
+        {!linkId && state === "ok" && albums && (albums.length ? (
+          <AlbumGrid albums={albums} />
+        ) : (
+          <EmptyState icon={<MagnifyingGlassIcon size={28} />} title={t.search.nothingFound} body={t.search.nothingFoundBody(q, t.search.songs)} />
+        ))}
 
         {!linkId && state === "ok" && results && results.length === 0 && (
           <EmptyState

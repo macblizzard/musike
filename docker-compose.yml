@@ -1,0 +1,26 @@
+# musike-mod — Mo's fork of upstream Musike, now on the upstream v1.5.1 base plus:
+#   * offline "Downloaded" collection (Cache Storage + blob playback)
+#   * lrclib lyrics
+#   * the audio-format fallback ladder (140 -> 251 -> 250 -> 249 -> 139)
+# Built from the repo's own (upstream) Dockerfile: multi-arch, bundled server.mjs, runs as
+# uid 1000 (node), so ./data and ./cache must stay owned by 1000:1000 on the host.
+#
+# Ports: this stack is 4181 -> musike-mod.example.com.
+# The untouched upstream image runs separately on 4180 -> musike.example.com.
+services:
+  musike-mod:
+    build: .
+    image: musike-mod:latest
+    container_name: musike-mod
+    restart: unless-stopped
+    ports:
+      - "4181:4181"
+    environment:
+      PORT: "4181"
+      MUSIKE_LOCATION: DE
+      MUSIKE_LANG: en
+      MUSIKE_CACHE_MAX_MB: "1024"
+      MUSIKE_AUDIO_CACHE_MAX_MB: "768"
+    volumes:
+      - ./data:/data
+      - ./cache:/cache

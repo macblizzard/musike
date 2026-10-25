@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useT } from "../i18n";
+import { capabilities } from "../lib/api";
 import { cn, formatTime } from "../lib/format";
 import type { Track } from "../lib/types";
 import { usePlayer } from "../player/player";
@@ -166,6 +167,8 @@ export function ModeSwitch({ className }: { className?: string }) {
   const quality = usePlayer((s) => s.quality);
   const setQuality = usePlayer((s) => s.setQuality);
   const showingVideo = usePlayer((s) => s.mediaKind === "video");
+  // The Android app plays audio only for now.
+  if (!capabilities.video) return null;
 
   const seg = (on: boolean) =>
     cn(

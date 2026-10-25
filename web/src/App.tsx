@@ -15,6 +15,7 @@ import { FloatingVideo, Theater } from "./components/Video";
 import { MD, useMediaQuery } from "./hooks/useMediaQuery";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { getT } from "./i18n";
+import { capabilities } from "./lib/api";
 import { cn } from "./lib/format";
 import { legacyRedirect, NOW_PLAYING_HASH, paths } from "./lib/routes";
 import { usePlayer } from "./player/player";
@@ -22,6 +23,7 @@ import { useLibrary } from "./stores/library";
 import { useOffline } from "./stores/offline";
 import { openSettings, useSystem } from "./stores/system";
 import { toast, useUi } from "./stores/ui";
+import Album from "./views/Album";
 import Artist from "./views/Artist";
 import BatchSearch from "./views/BatchSearch";
 import Collection from "./views/Collection";
@@ -54,8 +56,9 @@ export default function App() {
     })();
   }, [loadLibrary]);
 
-  // Check yt-dlp shortly after start and say so once if something needs doing.
+  // Check yt-dlp shortly after start and say so once if something needs doing (not on Android: no yt-dlp there).
   useEffect(() => {
+    if (!capabilities.engineSettings) return;
     const t = setTimeout(async () => {
       await loadSystem();
       const info = useSystem.getState().info;
@@ -130,6 +133,7 @@ export default function App() {
               <Route path={paths.searchList} element={<BatchSearch />} />
               <Route path="/search/genre/:id" element={<Genre />} />
               <Route path="/search/artist/:id" element={<Artist />} />
+              <Route path="/search/album/:id" element={<Album />} />
               <Route path={paths.library} element={<Library />} />
               <Route path={paths.favorites} element={<Collection kind="favorites" />} />
               <Route path={paths.history} element={<Collection kind="history" />} />

@@ -10,6 +10,7 @@ import { backupLibraryOnUpdate } from "./backup.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 4280; // fixed so the web origin (and its saved settings) stays the same between launches
+const isMac = process.platform === "darwin";
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -116,9 +117,12 @@ function createMainWindow(url: string): BrowserWindow {
     title: "Musike",
     icon: path.join(here, "icon.png"),
     backgroundColor: THEME.dark.color,
-    // Our own title bar (drawn by the web app) with native window buttons on top.
+    // Our own title bar (drawn by the web app) with the native window buttons on top of it:
+    // macOS traffic lights on the left, centred in the bar; Windows and Linux controls on the right.
     titleBarStyle: "hidden",
-    titleBarOverlay: { ...THEME.dark, height: TITLEBAR_HEIGHT },
+    ...(isMac
+      ? { trafficLightPosition: { x: 14, y: (TITLEBAR_HEIGHT - 14) / 2 } }
+      : { titleBarOverlay: { ...THEME.dark, height: TITLEBAR_HEIGHT } }),
     webPreferences: {
       preload: path.join(here, "preload.cjs"),
       contextIsolation: true,
@@ -182,7 +186,7 @@ async function launch() {
 ipcMain.on("musike:theme", (event, theme: "dark" | "light") => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const colors = THEME[theme] ?? THEME.dark;
-  win?.setTitleBarOverlay({ ...colors, height: TITLEBAR_HEIGHT });
+  if (!isMac) win?.setTitleBarOverlay({ ...colors, height: TITLEBAR_HEIGHT });
   win?.setBackgroundColor(colors.color);
 });
 
@@ -213,6 +217,9 @@ app.on("window-all-closed", () => app.quit());
 app.on("before-quit", () => void server?.close());
 
 void app.whenReady().then(() => {
-  Menu.setApplicationMenu(null);
+  // macOS needs an app menu: without the Edit menu, Cmd+C/V/A don't reach text fields, and Cmd+Q has no home.
+  Menu.setApplicationMenu(
+    isMac ? Menu.buildFromTemplate([{ role: "appMenu" }, { role: "editMenu" }, { role: "windowMenu" }]) : null,
+  );
   return launch();
 });

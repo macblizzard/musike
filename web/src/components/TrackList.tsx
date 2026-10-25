@@ -4,6 +4,7 @@ import { useT } from "../i18n";
 import { cn, formatTime } from "../lib/format";
 import type { Track } from "../lib/types";
 import { selectCurrent, usePlayer } from "../player/player";
+import { useAppearance } from "../stores/appearance";
 import { useLibrary } from "../stores/library";
 import { useUi } from "../stores/ui";
 import { Artwork } from "./Artwork";
@@ -115,9 +116,11 @@ interface ListProps {
   header?: boolean;
 }
 
-export function TrackList({ tracks, context, playlistId, showAlbum = true, header = true }: ListProps) {
+export function TrackList({ tracks, context, playlistId, showAlbum: albumWanted = true, header = true }: ListProps) {
   const playList = usePlayer((s) => s.playList);
   const t = useT();
+  // Pages ask for the album column where it makes sense; Settings can turn it off everywhere.
+  const showAlbum = useAppearance((s) => s.albumColumn) && albumWanted;
   return (
     <div>
       {header && (

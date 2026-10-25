@@ -9,13 +9,14 @@ import {
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { LANGUAGES, useI18n, useT, type Lang } from "../i18n";
-import type { Channel } from "../lib/api";
+import { capabilities, type Channel } from "../lib/api";
 import { cn } from "../lib/format";
 import { formatBytes } from "../lib/offline";
 import { useSystem } from "../stores/system";
 import { useOffline } from "../stores/offline";
 import { toast, useUi } from "../stores/ui";
 import { BackupSection } from "./BackupSection";
+import { AccentPicker, LayoutSection } from "./CustomizeSection";
 import { Modal } from "./Modal";
 
 function Segmented<T extends string>({
@@ -250,6 +251,7 @@ export function SettingsDialog() {
               ["light", <><SunIcon size={15} /> {t.settings.light}</>],
             ]}
           />
+          <AccentPicker />
         </section>
 
         <section className="flex flex-col gap-2">
@@ -264,10 +266,12 @@ export function SettingsDialog() {
           />
         </section>
 
+        <LayoutSection />
         <StorageSection />
 
         <BackupSection />
 
+        {capabilities.engineSettings && (
         <section className="flex flex-col gap-3">
           <h3 className="text-xs font-medium text-fg-3">{t.settings.engine}</h3>
 
@@ -353,6 +357,7 @@ export function SettingsDialog() {
             </ul>
           )}
         </section>
+        )}
       </div>
     </Modal>
   );

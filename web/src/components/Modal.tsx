@@ -46,6 +46,7 @@ export function Modal({ open, onClose, title, children }: Props) {
             role="dialog"
             aria-modal="true"
             aria-label={title}
+            data-escape-closes
             initial={from}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={from}

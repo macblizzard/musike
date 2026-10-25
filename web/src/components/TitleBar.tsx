@@ -1,9 +1,12 @@
+import { desktop } from "../lib/desktop";
+import { cn } from "../lib/format";
 import { selectCurrent, usePlayer } from "../player/player";
 import { Equalizer, LogoMark } from "./Brand";
 
 /**
- * Title bar for the desktop app. The window is frameless; Windows draws its native buttons over the
- * right end (the "titlebar area" env variables tell us how much room they take).
+ * Title bar for the desktop app. The window is frameless; Windows and Linux draw their native buttons over the
+ * right end (the "titlebar area" env variables tell us how much room they take), macOS its traffic lights
+ * over the left end.
  */
 export function TitleBar() {
   const track = usePlayer(selectCurrent);
@@ -11,7 +14,7 @@ export function TitleBar() {
 
   return (
     <div
-      className="app-drag flex shrink-0 items-center gap-2.5 pl-3.5 select-none"
+      className={cn("app-drag flex shrink-0 items-center gap-2.5 select-none", desktop?.platform === "darwin" ? "pl-[84px]" : "pl-3.5")}
       style={{
         height: "env(titlebar-area-height, 40px)",
         paddingRight: "calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 12px)",
