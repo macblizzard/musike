@@ -256,9 +256,10 @@ export const usePlayer = create<PlayerState>((set, get) => {
     if (kind === "audio" && !local) {
       const mine = token;
       try {
-        const blob = await readOffline(mediaId);
+        const kept = await readOffline(mediaId);
         if (mine !== token) return;
-        if (blob) local = offlineUrl(mediaId, blob);
+        // A string is a local file URL (the phone keeps audio in Documents); a Blob gets an object URL.
+        if (kept) local = typeof kept === "string" ? kept : offlineUrl(mediaId, kept);
       } catch {
         /* storage unavailable: stream it instead */
       }
