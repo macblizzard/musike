@@ -45,8 +45,6 @@ jobs:
           fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
@@ -81,6 +79,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        continue-on-error: true
         run: |
           conflicts=$(cat .merge-conflicts 2>/dev/null | sed 's/^/- conflict: /' || echo "- see the run log")
           body=$(printf '%s\n' \
@@ -110,8 +109,6 @@ jobs:
           ref: main # the sync job pushed the merge there
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
