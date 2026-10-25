@@ -1,0 +1,19 @@
+# What makes this the modded app rather than upstream.
+#
+# Checked by .github/scripts/sync-upstream.sh after every upstream merge. A needle that cannot be found in any
+# of the listed paths means upstream refactored around one of our features and the merge has to be resolved by
+# hand — the pipeline then stops before building, instead of shipping an IPA that quietly lost it.
+#
+# name|needle|paths (space separated)
+audio ladder in the resolver|pickAudioAll|server/src
+audio ladder in the stream proxy|audioAll|server/src/stream.ts
+audio ladder in the native resolver|rankFormats|server/src/directAudio.ts web/src/native/streams.ts
+stream urls can be forgotten and re-picked|forgetUrl|web/src/native/streams.ts
+offline cache keyed on the track id|musike.invalid|web/src/lib/offline.ts
+native offline downloader|musikeOffline|web/src/lib/offline.ts mobile/ios/App/App/MusikeWebViewController.swift
+downloaded tracks remember their length|storedDuration|mobile/ios/App/App/MusikeWebViewController.swift mobile/ios/App/App/MusikeAudio.swift
+trimming a padded download|AVAssetExportSession|mobile/ios/App/App/MusikeWebViewController.swift
+lyrics from lrclib, server|lrclib|server/src/lyrics.ts
+lyrics from lrclib, on the device|lrclib|web/src/native/api.ts
+native api retries a refused stream|retryStream|web/src/native/api.ts
+offline collection in the UI|downloaded|web/src/views/Collection.tsx

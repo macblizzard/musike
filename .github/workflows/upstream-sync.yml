@@ -1,0 +1,215 @@
+name: Sync upstream and publish the modded IPA
+
+# Watches Ernani1234/musike, merges a new release into this fork, proves the modded features survived, then builds
+# and publishes the unsigned IPA where FlareStore can pick it up.
+#
+# It merges on its own only when git can do it without judgement. A conflict, or a feature upstream refactored
+# around, stops the run and opens an issue — it never publishes a build that silently lost a feature.
+
+on:
+  schedule:
+    - cron: "0 4 * * *" # daily, 04:00 UTC — an hour before the catalogue sync at 09:00 CET
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Merge and verify, but do not commit, build or publish"
+        type: boolean
+        default: false
+      tag:
+        description: "Upstream tag to merge (default: the newest release)"
+        type: string
+        required: false
+      skip_build:
+        description: "Merge and push, but do not build the IPA"
+        type: boolean
+        default: false
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    name: merge upstream, verify features, bump version
+    runs-on: ubuntu-24.04
+    outputs:
+      changed: ${{ steps.sync.outputs.changed }}
+      version: ${{ steps.sync.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Merge, verify the modded features, typecheck, bump the version
+        id: sync
+        env:
+          UPSTREAM_URL: https://github.com/Ernani1234/musike.git
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=()
+          if [ "$INPUT_DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          if [ -n "$INPUT_TAG" ]; then args+=(--tag "$INPUT_TAG"); fi
+          bash .github/scripts/sync-upstream.sh "${args[@]+"${args[@]}"}"
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Upstream sync"
+            echo ""
+            echo "- merged: \`${{ steps.sync.outputs.changed }}\`"
+            echo "- version: \`${{ steps.sync.outputs.version || 'unchanged' }}\`"
+            echo "- base: \`$(cat .upstream-base 2>/dev/null || echo unknown)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open an issue when this needs a human
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          conflicts=$(cat .merge-conflicts 2>/dev/null | sed 's/^/- conflict: /' || echo "- see the run log")
+          body=$(printf '%s\n' \
+            "The automatic merge of a newer upstream release stopped before building — nothing was published." \
+            "" \
+            "$conflicts" \
+            "" \
+            "Run: $RUN" \
+            "" \
+            "Resolve with the per-file strategies in the \`musike-fork-maintenance\` skill, or re-run this workflow with a \`tag\` input to retry a specific release.")
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Upstream sync needs a human in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "Upstream sync needs a human ($(date -u +%Y-%m-%d))" --body "$body"
+          fi
+
+  build:
+    name: build the unsigned IPA
+    needs: sync
+    if: needs.sync.outputs.changed == 'true' && inputs.dry_run != true && inputs.skip_build != true
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main # the sync job pushed the merge there
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspaces
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the IPA (unsigned)
+        run: pnpm --filter @musike/mobile ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: musike-mod-ios
+          path: release/*.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: publish the release
+    needs: [sync, build]
+    if: needs.sync.outputs.changed == 'true' && inputs.dry_run != true && inputs.skip_build != true
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: musike-mod-ios
+          path: dist
+
+      - name: Publish to the public store repository
+        env:
+          # The IPA has to live on the public repo (SideStore downloads it with no auth), and this workflow's own
+          # GITHUB_TOKEN cannot write anywhere but this repository.
+          TOKEN: ${{ secrets.ALTSTORE_TOKEN }}
+          VERSION: ${{ needs.sync.outputs.version }}
+          SOURCE_REPO: macblizzard/musike-altstore
+          UPSTREAM_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          ipa=$(ls dist/*.ipa | head -1)
+          sha=$(sha256sum "$ipa" | cut -d' ' -f1)
+          base=$(basename "$ipa" | sed 's/^Musike-Setup-//; s/-iOS\.ipa$//')
+          name="Musike-Mod-${base}-iOS.ipa"
+          tag="mod-$VERSION"
+          build=$(node -p "const [a,b,c]=('$VERSION').split('.').map(Number); a*10000+b*100+c")
+          commit=$(git rev-parse --short HEAD)
+          echo "publishing $name ($sha) as $tag"
+
+          cat > /tmp/release.md <<EOF
+          Modded Musike for iOS — the fork of [Ernani1234/musike](https://github.com/Ernani1234/musike) that keeps
+          offline downloads, lrclib lyrics, and an audio format ladder that survives YouTube's per-session gating.
+
+          Built automatically from upstream \`${UPSTREAM_TAG:-newest release}\` at merge commit \`$commit\`,
+          version **$VERSION** (build $build), minimum iOS 15.0.
+
+          **Unsigned** — FlareStore, SideStore, AltStore and Sideloadly sign it with your own Apple ID on install.
+          Native mode: the backend runs inside the app, so it needs no server and no Tailscale.
+          EOF
+
+          python3 - "$VERSION" <<'PY' > /tmp/release.json
+          import json, sys
+          version = sys.argv[1]
+          body = open("/tmp/release.md").read().strip()
+          print(json.dumps({"tag_name": "mod-" + version, "name": "Musike mod " + version + " (iOS)",
+                            "body": body, "draft": False, "prerelease": False}))
+          PY
+
+          release=$(curl -sS -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$SOURCE_REPO/releases" \
+            --data-binary @/tmp/release.json)
+          id=$(printf '%s' "$release" | python3 -c "import json,sys; print(json.load(sys.stdin).get('id') or '')")
+          [ -n "$id" ] || { printf '%s\n' "$release" | head -20; exit 1; }
+
+          curl -sS -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            -H "Accept: application/vnd.github+json" \
+            --data-binary @"$ipa" \
+            "https://uploads.github.com/repos/$SOURCE_REPO/releases/$id/assets?name=$name" > /dev/null
+
+          # Read it back cold and unauthenticated, exactly as the store will.
+          url="https://github.com/$SOURCE_REPO/releases/download/$tag/$name"
+          code=$(curl -sL -o /tmp/check.ipa -w '%{http_code}' "$url")
+          got=$(sha256sum /tmp/check.ipa | cut -d' ' -f1)
+          echo "cold download: $code, sha256 $got"
+          [ "$code" = "200" ] || { echo "::error::release asset is not publicly downloadable"; exit 1; }
+          [ "$got" = "$sha" ] || { echo "::error::served bytes do not match the build"; exit 1; }
+          {
+            echo "### Published $tag"
+            echo ""
+            echo "$url"
+            echo ""
+            echo "The catalogue (\`musike-altstore\`) picks this up on its next sync."
+          } >> "$GITHUB_STEP_SUMMARY"
