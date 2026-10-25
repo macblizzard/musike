@@ -109,6 +109,11 @@ export interface MusikeApi {
 
   /** Lyrics from lrclib. The server keeps the answer, so each track is looked up once. */
   lyrics(t: Track): Promise<Lyrics>;
+  /**
+   * Backends that resolve a stream themselves (the phone) can offer the next audio format when YouTube refuses
+   * the current one. True while another format is left. The browser proxy has no equivalent: it retries server-side.
+   */
+  retryStream?(url: string): boolean;
 
   system(): Promise<SystemInfo>;
   updateYtdlp(channel: Channel): Promise<SystemJob>;

@@ -1,0 +1,52 @@
+# Builds the modded iOS app on demand and attaches the .ipa as an artifact.
+#
+# The .ipa is unsigned on purpose: FlareStore/SideStore/AltStore/Sideloadly sign it with Mo's own Apple ID
+# when installing. Shaped as iOS-only because release.yml builds the whole matrix (Windows, macOS desktop,
+# Linux, Android, iOS) and macOS runners bill at 10x on a private repo — this run costs ~15 minutes.
+#
+# Build without a Mac, then distribute: download the artifact and attach it as a release asset on the public
+# musike-altstore repo, which the AltStore source points at.
+name: Build iOS
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # build:native (web with the backend inside the app) -> cap sync ios -> xcodebuild archive with signing
+      # disabled -> zip Payload/ into release/Musike-Setup-<version>-iOS.ipa
+      - name: Build the unsigned IPA
+        run: pnpm --filter @musike/mobile ipa
+
+      - name: Check the download
+        shell: bash
+        run: |
+          { echo "### iOS"; ls -l release || true; } >> "$GITHUB_STEP_SUMMARY"
+          found=$(ls release/*-iOS.ipa 2>/dev/null | wc -l)
+          [ "$found" -eq 1 ] || { echo "::error::Expected 1 .ipa, found $found"; exit 1; }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: musike-mod-ios
+          path: release/*-iOS.ipa
+          if-no-files-found: error
+          retention-days: 30

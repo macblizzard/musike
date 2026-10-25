@@ -107,6 +107,47 @@ export const api: MusikeApi = {
       return library.importLibrary(b.library, mode);
     }),
 
+  lyrics: async (t) => {
+    // No server on the phone, so lrclib is asked directly. A blocked or offline request is "unknown", not "no
+    // lyrics": the sheet then offers a retry instead of claiming the track has none.
+    const params = new URLSearchParams({
+      track_name: t.title,
+      artist_name: t.artist,
+      duration: String(Math.round(t.duration || 0)),
+    });
+    try {
+      const res = await fetch(`https://lrclib.net/api/get?${params}`, {
+        headers: { "Lrclib-Client": "musike/1.5.1 (self-hosted music player)" },
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (res.status === 404) return { found: false };
+      if (!res.ok) return { found: false, unavailable: true };
+      const d = (await res.json()) as {
+        instrumental?: boolean;
+        plainLyrics?: string;
+        syncedLyrics?: string;
+        trackName?: string;
+        artistName?: string;
+        albumName?: string;
+      };
+      return {
+        found: true,
+        instrumental: d.instrumental,
+        plain: d.plainLyrics,
+        synced: d.syncedLyrics,
+        track: d.trackName,
+        artist: d.artistName,
+        album: d.albumName,
+        source: "lrclib",
+      };
+    } catch {
+      return { found: false, unavailable: true };
+    }
+  },
+
+  /** The next audio format for a URL YouTube refused; false once the ladder is spent. */
+  retryStream: (url: string) => forgetUrl(url),
+
   system: async () => SYSTEM,
   updateYtdlp: async () => {
     throw new ApiError(400, "yt-dlp isn't used on this device.");

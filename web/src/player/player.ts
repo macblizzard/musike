@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { getT, useT } from "../i18n";
-import { api, capabilities, explainStreamError, streamSource, streamUrl, systemMedia, type ApiError, type ErrorCode } from "../lib/api";
+import { api, capabilities, explainStreamError, streamSource, systemMedia, type ApiError, type ErrorCode } from "../lib/api";
 import { createAudio } from "../lib/audio";
 import { shuffled } from "../lib/format";
 import { read as readOffline } from "../lib/offline";
@@ -95,7 +95,9 @@ const warmJobs = new Map<string, Promise<string>>();
 /** Fetches a track's audio up front and returns a local URL for it. */
 export function warmTrack(id: string, duration: number): void {
   if (!id || duration > WARM_MAX_SECONDS || warmBlobs.has(id) || warmJobs.has(id)) return;
-  const job = fetch(streamUrl(id, "audio", "sd"), { headers: { Range: "bytes=0-" } })
+  // Awaited because the phone resolves the stream on demand; the browser hands back the proxy URL at once.
+  const job = Promise.resolve(streamSource(id, "audio", "sd"))
+    .then((src) => fetch(src, { headers: { Range: "bytes=0-" } }))
     .then((res) => (res.ok ? res.blob() : Promise.reject(new Error(`stream ${res.status}`))))
     .then((blob) => {
       const url = URL.createObjectURL(blob);
@@ -404,16 +406,24 @@ export const usePlayer = create<PlayerState>((set, get) => {
     }
   }
 
-  // A stream URL that expired mid-song gets one fresh try from the same spot before giving up.
-  let retriedToken = -1;
+  // A refused stream gets another try from the same spot: once for an expired URL, and on the phone several
+  // times while the backend still has an untried audio format (YouTube gates individual itags per session).
+  // Retries that land within 15s of each other belong to the same burst; a later failure starts fresh.
+  const MAX_STREAM_RETRIES = 5;
+  let retries = 0;
+  let lastErrorAt = 0;
 
   function onError(media: HTMLMediaElement) {
     const mine = token;
     const url = media.currentSrc || media.src;
-    if (capabilities.retryOnError && retriedToken !== mine) {
+    const now = Date.now();
+    if (now - lastErrorAt > 15_000) retries = 0;
+    lastErrorAt = now;
+    if (capabilities.retryOnError && retries < MAX_STREAM_RETRIES) {
+      retries += 1;
       const at = media.currentTime || get().position;
+      api.retryStream?.(url); // the next format, when this backend has one to offer
       load(get().index, { startAt: at, autoplay: true });
-      retriedToken = token;
       return;
     }
     set({ status: "error" });

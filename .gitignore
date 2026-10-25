@@ -25,3 +25,4 @@ server/cache/
 *cookies*.txt
 .DS_Store
 Thumbs.db
+.pnpm-store/

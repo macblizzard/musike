@@ -57,6 +57,7 @@ async function resolveOnIos(id: string): Promise<DirectAudio | null> {
       title: r.title,
       duration: r.duration,
       expiresAt: expire || Date.now() + 3 * 3600_000,
+      alternates: (r.urls ?? []).slice(1).map((url) => ({ url, mime: r.mime || "audio/mp4" })),
     };
   } catch {
     return null;
@@ -91,6 +92,23 @@ export function resolveAudio(id: string): Promise<DirectAudio> {
 }
 
 /** Forgets the stream behind a URL that stopped working, so the next try resolves a fresh one. */
-export function forgetUrl(url: string) {
-  for (const [id, r] of cache) if (r.url === url) cache.delete(id);
+/**
+ * A URL was refused. YouTube gates individual audio itags per session, so hand the next format in the ladder to
+ * the next resolve — dropping the entry (what this used to do) just re-resolved the same format and failed the
+ * same way. The track is only forgotten once every format has been tried.
+ *
+ * Returns true while another format is left.
+ */
+export function forgetUrl(url: string): boolean {
+  for (const [id, r] of cache) {
+    if (r.url !== url) continue;
+    const next = r.alternates?.shift();
+    if (!next) {
+      cache.delete(id);
+      return false;
+    }
+    cache.set(id, { ...r, url: next.url, mime: next.mime });
+    return true;
+  }
+  return false;
 }

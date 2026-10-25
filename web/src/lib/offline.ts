@@ -1,4 +1,4 @@
-import { streamUrl } from "./api";
+import { streamSource } from "./api";
 import type { Track } from "./types";
 
 /**
@@ -15,7 +15,10 @@ import type { Track } from "./types";
 const CACHE = "musike-offline";
 const META = "?musike-meta";
 
-const urlOf = (id: string) => streamUrl(id, "audio", "sd");
+// The key a kept track is stored under. Deliberately not the stream URL: the phone resolves its audio per
+// session (asynchronously, and the URL expires), so the cache needs a key that depends only on the track id.
+// `.invalid` is reserved by RFC 2606, so this can never be a real request.
+const urlOf = (id: string) => `https://musike.invalid/api/stream/${id}/audio`;
 const metaOf = (id: string) => urlOf(id) + META;
 const idOf = (url: string) => /\/api\/stream\/([^/]+)\/audio$/.exec(url)?.[1] ?? "";
 const isAudio = (k: Request) => !k.url.endsWith(META);
@@ -34,7 +37,8 @@ export async function keptIds(): Promise<Set<string>> {
 
 /** Stores a track's audio, and the track itself beside it. Fetched without a Range header, so the whole file is what gets saved. */
 export async function keep(track: Track): Promise<void> {
-  const res = await fetch(urlOf(track.id));
+  // Awaited: the phone resolves the stream on demand, the browser has the URL straight away.
+  const res = await fetch(await streamSource(track.id, "audio", "sd"));
   if (!res.ok) throw new Error(`stream ${res.status}`);
   const c = await store();
   await c.put(urlOf(track.id), res);

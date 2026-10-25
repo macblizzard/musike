@@ -21,6 +21,28 @@ export interface DirectAudio {
   duration: number;
   /** When the URL stops working (ms). */
   expiresAt: number;
+  /** The rest of the audio ladder, in quality order, for a URL YouTube refuses (403/410) mid-session. */
+  alternates?: { url: string; mime: string }[];
+}
+
+/** The audio formats to try, best first. YouTube gates individual itags per session, so one refusal must not end a track. */
+export const AUDIO_LADDER = ["140", "139", "251", "250", "249"];
+
+const formatId = (f: { itag?: unknown; format_id?: unknown }): string => String(f.itag ?? f.format_id ?? "");
+const mimeOf = (f: { mime_type?: string }): string => (f.mime_type?.startsWith("audio/webm") ? "audio/webm" : "audio/mp4");
+
+/** Quality order: the ladder first, then anything else preferred AAC, then bitrate. */
+export function rankFormats<T extends { itag?: unknown; format_id?: unknown; mime_type?: string; bitrate?: number }>(formats: T[]): T[] {
+  const step = (f: T) => {
+    const i = AUDIO_LADDER.indexOf(formatId(f));
+    return i === -1 ? AUDIO_LADDER.length : i;
+  };
+  return [...formats].sort(
+    (a, b) =>
+      step(a) - step(b) ||
+      Number(b.mime_type?.startsWith("audio/mp4")) - Number(a.mime_type?.startsWith("audio/mp4")) ||
+      (b.bitrate ?? 0) - (a.bitrate ?? 0),
+  );
 }
 
 export const validClients = (v: unknown): string[] | null =>
@@ -53,18 +75,18 @@ export async function directAudio(id: string, clients: string[], lang?: Lang): P
       const formats: any[] = [...(info.streaming_data?.adaptive_formats ?? []), ...(info.streaming_data?.formats ?? [])].filter(
         (f) => f.has_audio && !f.has_video && typeof f.url === "string",
       );
-      // AAC (m4a) first: it plays everywhere. Highest bitrate within the same kind.
-      const best = formats.sort(
-        (a, b) => Number(b.mime_type?.startsWith("audio/mp4")) - Number(a.mime_type?.startsWith("audio/mp4")) || (b.bitrate ?? 0) - (a.bitrate ?? 0),
-      )[0];
+      // The whole ladder, not just the best one: a refusal on 140 must fall through to 139 and on.
+      const ranked = rankFormats(formats);
+      const best = ranked[0];
       if (!best) continue;
       const expire = Number(new URL(best.url).searchParams.get("expire")) * 1000;
       return {
         url: best.url,
-        mime: best.mime_type?.startsWith("audio/webm") ? "audio/webm" : "audio/mp4",
+        mime: mimeOf(best),
         title: info.basic_info?.title ?? "",
         duration: info.basic_info?.duration ?? 0,
         expiresAt: expire || Date.now() + 3 * 3600_000,
+        alternates: ranked.slice(1).map((f) => ({ url: f.url as string, mime: mimeOf(f) })),
       };
     } catch (e) {
       reason = (e as Error).message || reason;

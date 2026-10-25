@@ -80,7 +80,11 @@ final class MusikeYouTube: NSObject, WKScriptMessageHandler {
             let details = result?["videoDetails"] as? [String: Any] ?? [:]
             let formats = ((result?["streamingData"] as? [String: Any])?["adaptiveFormats"] as? [[String: Any]] ?? [])
                 .filter { ($0["mimeType"] as? String)?.hasPrefix("audio/mp4") == true && $0["url"] != nil }
-                .sorted { Self.int($0["bitrate"]) > Self.int($1["bitrate"]) }
+                .sorted { a, b in
+                    let la = Self.ladder(a), lb = Self.ladder(b)
+                    if la != lb { return la < lb }
+                    return Self.int(a["bitrate"]) > Self.int(b["bitrate"])
+                }
             guard let best = formats.first, let url = best["url"] as? String else {
                 done(["error": "No audio format available for this video.", "code": "no_audio"])
                 return
@@ -88,10 +92,22 @@ final class MusikeYouTube: NSObject, WKScriptMessageHandler {
             MusikeAudio.remember(url: url, duration: Double(Self.int(details["lengthSeconds"])))
             done([
                 "url": url,
+                // The rest of the ladder: YouTube refuses individual itags per session, so the app keeps the others
+                // and retries with the next one instead of failing the track.
+                "urls": formats.compactMap { $0["url"] as? String },
                 "mime": best["mimeType"] as? String ?? "audio/mp4",
                 "title": details["title"] as? String ?? "",
                 "duration": Self.int(details["lengthSeconds"]),
             ])
+        }
+    }
+
+    /// Quality order for the AAC formats iOS can play: 140 (128 kbps) first, then 139, then the rest by bitrate.
+    private static func ladder(_ format: [String: Any]) -> Int {
+        switch Self.int(format["itag"]) {
+        case 140: return 0
+        case 139: return 1
+        default: return 2
         }
     }
 

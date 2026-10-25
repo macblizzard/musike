@@ -6,6 +6,8 @@ import { Capacitor } from "@capacitor/core";
  */
 interface ResolveResult {
   url: string;
+  /** The rest of the audio ladder the native side found, for when YouTube refuses `url`. */
+  urls?: string[];
   mime: string;
   title: string;
   duration: number;
