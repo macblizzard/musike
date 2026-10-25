@@ -96,6 +96,18 @@ jobs:
             gh issue create --repo "$GITHUB_REPOSITORY" --title "Upstream sync needs a human ($(date -u +%Y-%m-%d))" --body "$body"
           fi
 
+      - name: Close the sync issue once a run gets through
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Upstream sync needs a human in:title" --json number --jq .[0].number // empty)
+          [ -n "$existing" ] || exit 0
+          gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "Resolved: \`$(cat .upstream-base)\` merged cleanly with every modded feature intact (version \`${{ steps.sync.outputs.version || unchanged }}\`). Run: $RUN"
+          gh issue close "$existing" --repo "$GITHUB_REPOSITORY" --reason completed
+
   build:
     name: build the unsigned IPA
     needs: sync
