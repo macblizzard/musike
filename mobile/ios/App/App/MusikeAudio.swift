@@ -72,7 +72,8 @@ final class MusikeAudio: NSObject, WKScriptMessageHandler {
             ],
         ])
         let newItem = AVPlayerItem(asset: asset)
-        knownDuration = Self.knownDurations[link]
+        // A downloaded track carries its real length in a sidecar: the file itself can hold silence past the song.
+        knownDuration = Self.knownDurations[link] ?? MusikeOffline.storedDuration(for: url)
         // Keep a visible amount ahead of the playhead, so the buffered part of the progress bar means something.
         newItem.preferredForwardBufferDuration = 30
         ended = false

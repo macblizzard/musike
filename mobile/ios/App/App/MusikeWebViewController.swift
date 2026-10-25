@@ -1,3 +1,4 @@
+import AVFoundation
 import Capacitor
 import UIKit
 import WebKit
@@ -79,7 +80,12 @@ final class MusikeOffline: NSObject, WKScriptMessageHandler {
 
         switch command {
         case "download":
-            download(id: body["id"] as? String ?? "", url: body["url"] as? String ?? "", request: request)
+            download(
+                id: body["id"] as? String ?? "",
+                url: body["url"] as? String ?? "",
+                seconds: body["duration"] as? Double ?? 0,
+                request: request
+            )
         case "path":
             let target = file(body["id"] as? String ?? "")
             reply(request, [
@@ -104,7 +110,7 @@ final class MusikeOffline: NSObject, WKScriptMessageHandler {
 
     // MARK: - Downloading
 
-    private func download(id: String, url: String, request: Int) {
+    private func download(id: String, url: String, seconds: Double, request: Int) {
         guard !id.isEmpty, let link = URL(string: url), ["http", "https"].contains(link.scheme ?? "") else {
             reply(request, ["error": "No stream for this track."])
             return
@@ -135,11 +141,73 @@ final class MusikeOffline: NSObject, WKScriptMessageHandler {
                     self.reply(request, ["error": "The download was empty."])
                     return
                 }
-                self.reply(request, ["path": target.path, "bytes": bytes])
+                // YouTube's audio streams carry silence past the song. Remember where it really ends, then cut it,
+                // so the file is the length of the track and the seek bar agrees with it.
+                self.remember(id: id, seconds: seconds)
+                self.trim(target, to: seconds) {
+                    self.reply(request, ["path": target.path, "bytes": self.size(target)])
+                }
             } catch {
                 self.reply(request, ["error": error.localizedDescription])
             }
         }.resume()
+    }
+
+    // MARK: - How long the track really is
+
+    /// The length of the song, written beside the audio so playback knows where to stop even before it looks.
+    private func remember(id: String, seconds: Double) {
+        guard seconds > 0 else { return }
+        let sidecar = directory.appendingPathComponent("\(Self.safeId(id)).json")
+        let payload = ["duration": seconds]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        try? data.write(to: sidecar, options: .atomic)
+    }
+
+    /// The remembered length of a downloaded track, for a file URL inside our folder.
+    static func storedDuration(for url: URL) -> Double? {
+        guard url.isFileURL else { return nil }
+        let sidecar = url.deletingPathExtension().appendingPathExtension("json")
+        guard let data = try? Data(contentsOf: sidecar),
+              let object = try? JSONSerialization.jsonObject(with: data),
+              let parsed = object as? [String: Any],
+              let seconds = parsed["duration"] as? Double,
+              seconds > 0
+        else { return nil }
+        return seconds
+    }
+
+    /// Cuts everything past `seconds`. Stream-copied (no re-encode, no quality loss), and skipped when the file is
+    /// already the right length or the export fails — the sidecar above still stops playback in the right place.
+    private func trim(_ url: URL, to seconds: Double, completion: @escaping () -> Void) {
+        guard seconds > 0 else {
+            completion()
+            return
+        }
+        let asset = AVURLAsset(url: url)
+        let measured = CMTimeGetSeconds(asset.duration)
+        guard measured.isFinite, measured > seconds + 1 else {
+            completion()
+            return
+        }
+        guard let export = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough) else {
+            completion()
+            return
+        }
+        let out = url.deletingPathExtension().appendingPathExtension("trim.m4a")
+        try? FileManager.default.removeItem(at: out)
+        export.outputURL = out
+        export.outputFileType = .m4a
+        export.timeRange = CMTimeRange(start: .zero, duration: CMTime(seconds: seconds, preferredTimescale: 600))
+        export.exportAsynchronously {
+            if export.status == .completed, self.size(out) > 0 {
+                try? FileManager.default.removeItem(at: url)
+                try? FileManager.default.moveItem(at: out, to: url)
+            } else {
+                try? FileManager.default.removeItem(at: out)
+            }
+            completion()
+        }
     }
 
     private func reply(_ request: Int, _ payload: [String: Any]) {

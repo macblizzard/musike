@@ -112,7 +112,7 @@ export async function keep(track: Track): Promise<void> {
     // YouTube refuses individual audio formats per session, so a refused URL is retried with the next one.
     for (let attempt = 0; attempt < 4; attempt++) {
       const url = await streamSource(track.id, "audio", "sd");
-      const reply = await native("download", { id: track.id, url });
+      const reply = await native("download", { id: track.id, url, duration: Math.round(track.duration || 0) });
       if (reply.path) {
         try {
           localStorage.setItem(metaKey(track.id), JSON.stringify({ track, keptAt: Date.now() }));
