@@ -72,6 +72,16 @@ export function readConfig(input: unknown): AiConfig {
 
 const OPENCODE_SESSION = "x-opencode-session";
 
+/**
+ * Where the provider calls go. The browser uses `fetch`; the phone swaps in Capacitor's native HTTP,
+ * because a webview's fetch is subject to CORS and the providers send no Access-Control-Allow-Origin.
+ */
+let httpFetch: typeof fetch = (input, init) => fetch(input, init);
+
+export function useAiFetch(next: typeof fetch) {
+  httpFetch = next;
+}
+
 function authHeaders(cfg: AiConfig, session?: string): Record<string, string> {
   const headers: Record<string, string> = {
     "content-type": "application/json",
@@ -91,7 +101,7 @@ function authHeaders(cfg: AiConfig, session?: string): Record<string, string> {
 /** The provider's model list, for the dropdown in Settings. */
 export async function listModels(input: unknown): Promise<string[]> {
   const cfg = readConfig(input);
-  const res = await fetch(`${cfg.baseUrl}/models`, {
+  const res = await httpFetch(`${cfg.baseUrl}/models`, {
     headers: authHeaders(cfg),
     signal: AbortSignal.timeout(20_000),
   }).catch(() => null);
@@ -142,7 +152,7 @@ function errorDetail(error: { message?: unknown } | string | undefined, status: 
 
 /** One chat completion. Errors are turned into something the app can show. */
 async function chat(cfg: AiConfig, messages: ChatMessage[], tools: unknown[] = [], session?: string): Promise<ChatReply> {
-  const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
+  const res = await httpFetch(`${cfg.baseUrl}/chat/completions`, {
     method: "POST",
     headers: authHeaders(cfg, session),
     signal: AbortSignal.timeout(120_000),

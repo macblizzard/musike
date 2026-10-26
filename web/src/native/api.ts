@@ -1,5 +1,7 @@
+import { CapacitorHttp } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
+import { getJob, listModels, startPlaylistJob, testModel, useAiFetch } from "../../../server/src/ai";
 import {
   album as albumPage,
   ALBUM_ID,
@@ -29,6 +31,36 @@ export * from "../lib/apiTypes";
 library.useLibraryStorage(nativeStorage);
 
 const fail = (status: number, key: MsgKey) => new ApiError(status, tr(getLang(), msg(key)));
+
+/**
+ * Providers don't answer `Access-Control-Allow-Origin`, so a webview fetch could never read the reply.
+ * Capacitor's native HTTP goes through URLSession instead: no CORS, and the same code as the server.
+ */
+const nativeFetch: typeof fetch = async (input, init) => {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+  const method = init?.method ?? "GET";
+  const headers = Object.fromEntries(new Headers(init?.headers).entries());
+  let data: unknown;
+  if (typeof init?.body === "string") {
+    try {
+      data = JSON.parse(init.body);
+    } catch {
+      data = init.body;
+    }
+  }
+  const res = await CapacitorHttp.request({
+    url,
+    method,
+    headers,
+    data,
+    connectTimeout: 30_000,
+    readTimeout: 120_000,
+  });
+  const text = typeof res.data === "string" ? res.data : JSON.stringify(res.data ?? null);
+  return new Response(text, { status: res.status, headers: { "content-type": "application/json" } });
+};
+
+useAiFetch(nativeFetch);
 
 /** Runs a server function and turns its errors into what the app expects, in the app's language. */
 async function call<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
@@ -148,6 +180,21 @@ export const api: MusikeApi = {
   /** The next audio format for a URL YouTube refused; false once the ladder is spent. */
   retryStream: (url: string) => forgetUrl(url),
 
+  aiModels: (config) => call(() => listModels(config)),
+  aiTest: (config) => call(() => testModel(config)),
+  aiPlaylist: (request) =>
+    call(async () => {
+      if (!request.prompt.trim()) throw fail(400, "aiPromptRequired");
+      return startPlaylistJob({
+        prompt: request.prompt,
+        config: request.config,
+        personalize: request.personalize,
+        count: request.count,
+        lang: getLang(),
+      });
+    }),
+  aiJob: (id) => call(async () => getJob(id)),
+
   system: async () => SYSTEM,
   updateYtdlp: async () => {
     throw new ApiError(400, "yt-dlp isn't used on this device.");
@@ -170,4 +217,4 @@ export async function saveFile(name: string, text: string) {
 
 export const systemMedia = media;
 
-export const capabilities = { video: false, engineSettings: false, retryOnError: true, ai: false };
+export const capabilities = { video: false, engineSettings: false, retryOnError: true, ai: true };
