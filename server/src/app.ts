@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { createServer } from "node:net";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
+import { getJob, listModels, startPlaylistJob, testModel } from "./ai.js";
 import { ALBUM_ID, album, ARTIST_ID, artist, GENRE_ID, genre, genreArtists, genres, searchAlbums } from "./browse.js";
 import { config } from "./config.js";
 import * as library from "./library.js";
@@ -219,6 +220,28 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
   app.delete("/api/playlists/:pid/tracks/:id", async (req) =>
     library.removeFromPlaylist((req.params as { pid: string }).pid, videoId(req.params)),
   );
+
+  // AI playlist assistant: the provider settings (key included) come with every request from the app.
+
+  /** The provider's models, so Settings can offer a real dropdown instead of a guess. */
+  app.post("/api/ai/models", async (req) => ({ models: await listModels(req.body) }));
+
+  /** Starts composing a playlist in the background; the app polls the job for progress. */
+  app.post("/api/ai/playlist", async (req) => {
+    const body = (req.body ?? {}) as { prompt?: unknown; config?: unknown; personalize?: unknown; count?: unknown };
+    return startPlaylistJob({
+      prompt: typeof body.prompt === "string" ? body.prompt : "",
+      config: body.config,
+      personalize: body.personalize === true,
+      count: typeof body.count === "number" ? body.count : undefined,
+      lang: langOf(req),
+    });
+  });
+
+  /** One cheap round trip with the chosen model: what the "Test" button in Settings calls. */
+  app.post("/api/ai/test", async (req) => testModel(req.body));
+
+  app.get("/api/ai/jobs/:id", async (req) => getJob((req.params as { id: string }).id));
 
   // Web app (production build)
 

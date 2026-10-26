@@ -1,6 +1,9 @@
 import { getLang, getT } from "../i18n";
 import {
   ApiError,
+  type AiJob,
+  type AiPlaylistRequest,
+  type AiProviderConfig,
   type Channel,
   type ErrorCode,
   type ImportResult,
@@ -85,6 +88,13 @@ export const api: MusikeApi = {
 
   system: () => request<SystemInfo>("/api/system"),
   updateYtdlp: (channel: Channel) => request<SystemJob>("/api/system/ytdlp", { method: "POST", json: { channel } }),
+
+  // The provider settings travel with each call: the server keeps none of it.
+  aiModels: (config: AiProviderConfig) =>
+    request<{ models: string[] }>("/api/ai/models", { method: "POST", json: config }).then((r) => r.models),
+  aiTest: (config: AiProviderConfig) => request<{ reply: string }>("/api/ai/test", { method: "POST", json: config }),
+  aiPlaylist: (body: AiPlaylistRequest) => request<{ jobId: string }>("/api/ai/playlist", { method: "POST", json: body }),
+  aiJob: (id: string) => request<AiJob>(`/api/ai/jobs/${encodeURIComponent(id)}`),
 };
 
 /** What a media element plays for a track: here, the server's stream proxy. The Android backend resolves it on the phone. */
@@ -113,7 +123,7 @@ export async function saveFile(name: string, text: string) {
 export const systemMedia: SystemMedia | null = null;
 
 /** What this build can do. The Android build has no video yet, no yt-dlp to manage, and retries expired streams. */
-export const capabilities = { video: true, engineSettings: true, retryOnError: false };
+export const capabilities = { video: true, engineSettings: true, retryOnError: false, ai: true };
 
 /** Media elements hide the HTTP error body; fetch it to show the real reason. */
 export async function explainStreamError(url: string): Promise<{ message: string; code?: ErrorCode }> {

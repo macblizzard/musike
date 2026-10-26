@@ -1,4 +1,4 @@
-import { DatabaseIcon, PlusIcon } from "@phosphor-icons/react";
+import { DatabaseIcon, PlusIcon, SparkleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Cover, type CoverKind } from "../components/Cover";
@@ -8,6 +8,7 @@ import { useT } from "../i18n";
 import { paths } from "../lib/routes";
 import type { Track } from "../lib/types";
 import { IconButton } from "../components/IconButton";
+import { useAi } from "../stores/ai";
 import { useLibrary } from "../stores/library";
 import { useOffline } from "../stores/offline";
 import { useUi } from "../stores/ui";
@@ -40,6 +41,8 @@ export default function Library() {
   const keptCount = useOffline((s) => s.ids.size);
   const [creating, setCreating] = useState(false);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
+  const openAi = useUi((s) => s.openAi);
+  const aiReady = useAi((s) => s.ready());
   const navigate = useNavigate();
   const t = useT();
 
@@ -49,6 +52,11 @@ export default function Library() {
         title={t.nav.library}
         actions={
           <>
+          {aiReady && (
+            <IconButton label={t.nav.ai} onClick={() => openAi()}>
+              <SparkleIcon size={20} weight="fill" />
+            </IconButton>
+          )}
           <IconButton label={t.library.backup} onClick={() => setSettingsOpen(true)}>
             <DatabaseIcon size={20} />
           </IconButton>

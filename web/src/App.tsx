@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate, useNavigationType } from "react-router";
+import { AiPlaylistDialog } from "./components/AiPlaylistDialog";
 import { AddToPlaylistDialog, ShortcutsDialog } from "./components/Dialogs";
 import { LyricsSheet } from "./components/LyricsSheet";
 import { MiniPlayer, TabBar } from "./components/MobileChrome";
@@ -161,6 +162,7 @@ export default function App() {
       <Theater />
       <TrackMenu />
       <AddToPlaylistDialog />
+      <AiPlaylistDialog />
       <LyricsSheet />
       <ShortcutsDialog />
       <SettingsDialog />

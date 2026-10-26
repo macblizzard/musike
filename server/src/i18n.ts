@@ -53,6 +53,13 @@ const en = {
   toolMissing: "{tool} wasn't found on this computer.",
   downloadFailed: "Downloading {tool} failed (HTTP {status}).",
   ffmpegPackage: "Unexpected FFmpeg package.",
+  aiNotConfigured: "Set up the AI provider and model in Settings first.",
+  aiPromptRequired: "Describe the playlist you want.",
+  aiUnreachable: "Couldn't reach the AI provider. Check the base URL and this connection.",
+  aiRequestFailed: "The AI provider refused the request ({detail}).",
+  aiBadResponse: "The AI provider sent an answer Musike couldn't read.",
+  aiNoTracks: "The AI didn't find any songs for that. Try naming an artist, a song or a genre.",
+  aiJobNotFound: "This AI request is gone. Start it again.",
 };
 
 export type MsgKey = keyof typeof en;
@@ -104,6 +111,13 @@ const pt: Record<MsgKey, string> = {
   toolMissing: "{tool} não encontrado neste computador.",
   downloadFailed: "Download de {tool} falhou (HTTP {status}).",
   ffmpegPackage: "Pacote do FFmpeg inesperado.",
+  aiNotConfigured: "Configure o provedor de IA e o modelo em Ajustes primeiro.",
+  aiPromptRequired: "Descreva a playlist que você quer.",
+  aiUnreachable: "Não foi possível falar com o provedor de IA. Confira a URL base e a conexão.",
+  aiRequestFailed: "O provedor de IA recusou o pedido ({detail}).",
+  aiBadResponse: "O provedor de IA respondeu algo que o Musike não conseguiu ler.",
+  aiNoTracks: "A IA não encontrou músicas para isso. Tente citar um artista, uma música ou um gênero.",
+  aiJobNotFound: "Este pedido de IA expirou. Comece de novo.",
 };
 
 const CATALOG: Record<Lang, Record<MsgKey, string>> = { en, "pt-BR": pt };

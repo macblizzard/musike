@@ -7,12 +7,14 @@ import {
   HouseIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  SparkleIcon,
 } from "@phosphor-icons/react";
 import { useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router";
 import { useT } from "../i18n";
 import { cn } from "../lib/format";
 import { paths } from "../lib/routes";
+import { useAi } from "../stores/ai";
 import { useAppearance } from "../stores/appearance";
 import { useLibrary } from "../stores/library";
 import { useOffline } from "../stores/offline";
@@ -103,6 +105,9 @@ export function Rail() {
   const createPlaylist = useLibrary((s) => s.createPlaylist);
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
+  const openAi = useUi((s) => s.openAi);
+  // Hidden until the assistant is on and pointed at a model, so it never offers a dead button.
+  const aiReady = useAi((s) => s.ready());
 
   return (
     <aside className="island hidden w-[78px] shrink-0 md:flex wide:w-[256px]">
@@ -179,6 +184,21 @@ export function Rail() {
             </RailLink>
           ))}
         </div>
+
+        {aiReady && (
+          <div className="flex justify-center px-2 pb-1 wide:justify-start">
+            <button
+              type="button"
+              onClick={() => openAi()}
+              aria-label={t.nav.ai}
+              title={t.nav.ai}
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-full px-3 text-sm text-fg-2 transition-colors hover:bg-surface-3 hover:text-fg wide:justify-start"
+            >
+              <SparkleIcon size={19} weight="fill" className="shrink-0 text-accent-text" />
+              <span className="hidden flex-1 text-left wide:inline">{t.nav.ai}</span>
+            </button>
+          </div>
+        )}
 
         <div className="flex border-t border-line p-2">
           <SettingsButton />

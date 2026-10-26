@@ -38,6 +38,8 @@ interface UiState {
   settingsOpen: boolean;
   /** The track whose lyrics are open, or null. */
   lyricsFor: Track | null;
+  /** The AI playlist assistant: `null` when closed, the starting prompt ("" is fine) when open. */
+  aiPrompt: string | null;
   /** Cinema view: the video maximized over everything. */
   theater: boolean;
   setTheme: (t: Theme) => void;
@@ -56,6 +58,8 @@ interface UiState {
   setSettingsOpen: (open: boolean) => void;
   openLyrics: (track: Track | null) => void;
   setTheater: (open: boolean) => void;
+  openAi: (prompt?: string) => void;
+  closeAi: () => void;
 }
 
 const readTheme = (): Theme => (document.documentElement.dataset.theme === "light" ? "light" : "dark");
@@ -80,6 +84,7 @@ export const useUi = create<UiState>((set, get) => ({
   shortcutsOpen: false,
   settingsOpen: false,
   lyricsFor: null,
+  aiPrompt: null,
   theater: false,
 
   setTheme: (theme) => {
@@ -138,6 +143,8 @@ export const useUi = create<UiState>((set, get) => ({
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   openLyrics: (lyricsFor) => set({ lyricsFor, menu: null }),
   setTheater: (theater) => set({ theater }),
+  openAi: (prompt = "") => set({ aiPrompt: prompt, menu: null }),
+  closeAi: () => set({ aiPrompt: null }),
 }));
 
 export const toast = (message: string, tone?: Toast["tone"], action?: ToastAction) =>

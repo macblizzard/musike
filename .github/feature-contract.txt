@@ -17,3 +17,5 @@ lyrics from lrclib, server|lrclib|server/src/lyrics.ts
 lyrics from lrclib, on the device|lrclib|web/src/native/api.ts
 native api retries a refused stream|retryStream|web/src/native/api.ts
 offline collection in the UI|downloaded|web/src/views/Collection.tsx
+AI playlist assistant|aiPlaylist|server/src/ai.ts web/src/lib/api.ts
+AI provider settings stay on the device|musike:ai|web/src/stores/ai.ts

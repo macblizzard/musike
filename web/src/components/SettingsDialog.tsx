@@ -15,6 +15,7 @@ import { formatBytes } from "../lib/offline";
 import { useSystem } from "../stores/system";
 import { useOffline } from "../stores/offline";
 import { toast, useUi } from "../stores/ui";
+import { AiSection } from "./AiSection";
 import { BackupSection } from "./BackupSection";
 import { AccentPicker, LayoutSection } from "./CustomizeSection";
 import { Modal } from "./Modal";
@@ -268,6 +269,8 @@ export function SettingsDialog() {
 
         <LayoutSection />
         <StorageSection />
+
+        {capabilities.ai && <AiSection />}
 
         <BackupSection />
 

@@ -170,4 +170,4 @@ export async function saveFile(name: string, text: string) {
 
 export const systemMedia = media;
 
-export const capabilities = { video: false, engineSettings: false, retryOnError: true };
+export const capabilities = { video: false, engineSettings: false, retryOnError: true, ai: false };

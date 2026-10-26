@@ -8,6 +8,7 @@ import {
   PlaylistIcon,
   QueueIcon,
   RadioIcon,
+  SparkleIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
@@ -18,6 +19,7 @@ import { useT } from "../i18n";
 import { cn } from "../lib/format";
 import { offlineSupported } from "../lib/offline";
 import { usePlayer } from "../player/player";
+import { useAi } from "../stores/ai";
 import { useLibrary } from "../stores/library";
 import { useOffline } from "../stores/offline";
 import { useUi } from "../stores/ui";
@@ -45,6 +47,8 @@ export function TrackMenu() {
   const menu = useUi((s) => s.menu);
   const close = useUi((s) => s.closeMenu);
   const openAddToPlaylist = useUi((s) => s.openAddToPlaylist);
+  const openAi = useUi((s) => s.openAi);
+  const aiReady = useAi((s) => s.ready());
   const isFavorite = useLibrary((s) => (menu ? s.favorites.some((t) => t.id === menu.track.id) : false));
   const isMd = useMediaQuery(MD);
   const box = useRef<HTMLDivElement>(null);
@@ -102,6 +106,14 @@ export function TrackMenu() {
       <Item icon={<PlaylistIcon size={18} />} onClick={() => openAddToPlaylist([menu.track])}>
         {t.trackMenu.addToPlaylist}
       </Item>
+      {aiReady && (
+        <Item
+          icon={<SparkleIcon size={18} weight="fill" className="text-accent-text" />}
+          onClick={() => openAi(t.ai.likeThisPrompt(menu.track.title, menu.track.artist))}
+        >
+          {t.trackMenu.aiLikeThis}
+        </Item>
+      )}
       {offlineSupported() && (
         <Item
           icon={kept ? <CheckCircleIcon size={18} weight="fill" /> : <DownloadSimpleIcon size={18} />}

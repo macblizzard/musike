@@ -22,6 +22,39 @@ export interface ImportResult {
   favoritesAdded: number;
 }
 
+/**
+ * Where the AI playlist assistant talks to: an OpenAI-compatible endpoint the person configures on the
+ * device. The key is only ever stored here, in the app's own storage, and travels with each request.
+ */
+export interface AiProviderConfig {
+  provider: string;
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+}
+
+export interface AiPlaylistRequest {
+  prompt: string;
+  config: AiProviderConfig;
+  /** Send a digest of favorites and history so the playlist fits what the person already listens to. */
+  personalize: boolean;
+  count?: number;
+}
+
+/** What the assistant is doing right now, for the progress line. */
+export type AiJobStage = "thinking" | "searching" | "creating";
+
+export interface AiJob {
+  id: string;
+  status: "running" | "done" | "error";
+  stage: AiJobStage;
+  detail: string;
+  startedAt: number;
+  finishedAt?: number;
+  playlist?: Playlist;
+  error?: string;
+}
+
 export interface SystemJob {
   kind: "update" | "install";
   channel: Channel;
@@ -117,4 +150,13 @@ export interface MusikeApi {
 
   system(): Promise<SystemInfo>;
   updateYtdlp(channel: Channel): Promise<SystemJob>;
+
+  /**
+   * The AI playlist assistant. Optional: a backend without it (the Android build) simply doesn't offer the
+   * feature, and the app hides it. The web/desktop backend proxies the call so the key never sits on the server.
+   */
+  aiModels?(config: AiProviderConfig): Promise<string[]>;
+  aiTest?(config: AiProviderConfig): Promise<{ reply: string }>;
+  aiPlaylist?(request: AiPlaylistRequest): Promise<{ jobId: string }>;
+  aiJob?(id: string): Promise<AiJob>;
 }
