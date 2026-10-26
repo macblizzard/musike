@@ -442,6 +442,8 @@ export const en = {
     aiKeyHint: "Kept on this device only, and sent with each request. The server stores none of it.",
     aiModel: "Model",
     aiModelEmpty: "No model chosen",
+    aiModelPlaceholder: "deepseek-v4.1-flash",
+    aiModelHint: "Type the model id, or load the provider's list.",
     aiLoadModels: "Load models",
     aiLoadingModels: "Loading models…",
     aiModelsFailed: "Couldn't list the models. Check the endpoint and the API key.",

@@ -23,8 +23,8 @@ export interface AiSettings {
 export const OPENCODE_GO_URL = "https://opencode.ai/zen/go/v1";
 
 export const AI_PROVIDERS = [
-  { id: "opencode", name: "OpenCode Go", baseUrl: OPENCODE_GO_URL },
-  { id: "custom", name: "OpenAI-compatible", baseUrl: "" },
+  { id: "opencode", name: "OpenCode Go", baseUrl: OPENCODE_GO_URL, defaultModel: "deepseek-v4.1-flash" },
+  { id: "custom", name: "OpenAI-compatible", baseUrl: "", defaultModel: "" },
 ] as const;
 
 export const DEFAULT_AI: AiSettings = {
@@ -49,7 +49,8 @@ export function cleanAi(input: unknown): AiSettings {
   out.baseUrl = (str("baseUrl") || DEFAULT_AI.baseUrl).trim().replace(/\/+$/, "");
   // An earlier build pointed the OpenCode preset at the pay-as-you-go relay, not the Go plan.
   if (out.provider === "opencode" && out.baseUrl.endsWith("/zen/v1")) out.baseUrl = OPENCODE_GO_URL;
-  out.model = str("model");
+  // A settings object saved before a model was chosen must not erase the default.
+  out.model = str("model").trim() || DEFAULT_AI.model;
   out.apiKey = str("apiKey");
   return out;
 }

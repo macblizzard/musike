@@ -436,6 +436,8 @@ export const pt: Messages = {
     aiKeyHint: "Fica só neste dispositivo e vai junto com cada pedido. O servidor não guarda nada.",
     aiModel: "Modelo",
     aiModelEmpty: "Nenhum modelo escolhido",
+    aiModelPlaceholder: "deepseek-v4.1-flash",
+    aiModelHint: "Digite o id do modelo ou carregue a lista do provedor.",
     aiLoadModels: "Carregar modelos",
     aiLoadingModels: "Carregando modelos…",
     aiModelsFailed: "Não foi possível listar os modelos. Confira o endpoint e a chave.",

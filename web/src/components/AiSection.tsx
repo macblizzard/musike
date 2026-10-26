@@ -1,4 +1,4 @@
-import { ArrowsClockwiseIcon, CaretDownIcon, CheckCircleIcon, SparkleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CheckCircleIcon, SparkleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useT } from "../i18n";
 import { api } from "../lib/api";
@@ -79,11 +79,13 @@ export function AiSection() {
     }
   };
 
-  // Loaded once when the section is useful, so the dropdown isn't empty on a fresh install.
+  // Load the list as soon as there is an endpoint and a key: the person should not have to find the refresh icon.
   useEffect(() => {
-    if (ai.enabled && canLoad && !models.length && !loading) void loadModels();
+    if (!canLoad || !ai.apiKey) return;
+    const timer = setTimeout(() => void loadModels(), 900);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ai.enabled, canLoad]);
+  }, [ai.baseUrl, ai.apiKey, canLoad]);
 
   const runTest = async () => {
     if (!api.aiTest || !ai.model) return;
@@ -115,7 +117,9 @@ export function AiSection() {
               type="button"
               role="radio"
               aria-checked={ai.provider === p.id}
-              onClick={() => ai.set({ provider: p.id, baseUrl: p.baseUrl || ai.baseUrl })}
+              onClick={() =>
+                ai.set({ provider: p.id, baseUrl: p.baseUrl || ai.baseUrl, model: p.defaultModel || ai.model })
+              }
               className={cn(
                 "h-9 flex-1 rounded-full px-3 text-[13px] font-medium transition-colors",
                 ai.provider === p.id ? "bg-surface-4 text-fg shadow-[inset_0_1px_0_var(--highlight)]" : "text-fg-2 hover:text-fg",
@@ -157,22 +161,21 @@ export function AiSection() {
         <div className="flex flex-col gap-1">
           <span className="text-[13px] text-fg-2">{t.settings.aiModel}</span>
           <div className="flex gap-2">
-            <div className="relative min-w-0 flex-1">
-              <select
-                value={ai.model}
-                onChange={(e) => ai.set({ model: e.target.value })}
-                className={cn(field, "w-full appearance-none pr-9 font-mono text-[13px]")}
-              >
-                {!ai.model && <option value="">{t.settings.aiModelEmpty}</option>}
-                {ai.model && !models.includes(ai.model) && <option value={ai.model}>{ai.model}</option>}
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-              <CaretDownIcon size={14} weight="bold" className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-fg-3" />
-            </div>
+            <input
+              value={ai.model}
+              onChange={(e) => ai.set({ model: e.target.value.trim() })}
+              list="ai-model-options"
+              placeholder={t.settings.aiModelPlaceholder}
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              className={cn(field, "min-w-0 flex-1 font-mono text-[13px]")}
+            />
+            <datalist id="ai-model-options">
+              {models.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
             <button
               type="button"
               disabled={!canLoad || loading}
@@ -184,6 +187,7 @@ export function AiSection() {
               <ArrowsClockwiseIcon size={18} weight="bold" className={loading ? "animate-spin" : ""} />
             </button>
           </div>
+          <span className="text-xs text-fg-3">{t.settings.aiModelHint}</span>
           {loading && <span className="text-xs text-fg-3">{t.settings.aiLoadingModels}</span>}
           {!loading && listError && <span className="text-xs text-danger">{listError}</span>}
           {!loading && !listError && models.length > 0 && (
