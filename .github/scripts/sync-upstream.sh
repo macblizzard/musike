@@ -41,8 +41,11 @@ git config user.name >/dev/null 2>&1 || git config user.name "musike-mod bot"
 git config user.email >/dev/null 2>&1 || git config user.email "musike-mod@example.com"
 
 git remote get-url upstream >/dev/null 2>&1 || git remote add upstream "$UPSTREAM_URL"
-git fetch --quiet --tags --prune upstream
-git fetch --quiet --tags --prune origin || true
+# Fetch branches only. Upstream re-uses tag names (v1.0.0, v1.1.0, v1.2.0) that this
+# fork rewrote, so a plain `--tags` fetch aborts with "would clobber existing tag" and,
+# under `set -e`, kills the sync silently. Tags are fetched one at a time below.
+git fetch --quiet --prune upstream '+refs/heads/*:refs/remotes/upstream/*'
+git fetch --quiet --prune origin '+refs/heads/*:refs/remotes/origin/*' || true
 
 latest=$(git ls-remote --tags --refs upstream 'v*' \
   | awk '{print $2}' | sed 's|refs/tags/||' | grep -E '^v[0-9]+\.[0-9]+(\.[0-9]+)?$' | sort -V | tail -1)
@@ -51,6 +54,9 @@ latest=$(git ls-remote --tags --refs upstream 'v*' \
 base="v0.0.0"
 [ -f "$BASE_FILE" ] && base=$(tr -d '[:space:]' < "$BASE_FILE")
 tag="${FORCE_TAG:-$latest}"
+# fetch only the tag we are about to merge (force: our rewritten copy may already exist)
+git fetch --quiet --force upstream "refs/tags/${tag}:refs/tags/${tag}" \
+  || { note "cannot fetch upstream tag $tag"; exit 1; }
 
 say "upstream newest: $latest"
 say "fork based on:   $base"
